@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Transaction, Category, Bank } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Edit2, Trash2, X, Upload, Download, Paperclip, FileText } from 'lucide-react';
-import { buildImportRows, downloadCSVTemplate } from '@/lib/csvImport';
+import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
 import { logAction } from '@/lib/auditLog';
 import CategorySelect from '@/components/CategorySelect';
 import DateRangePicker from '@/components/DateRangePicker';
@@ -242,15 +242,36 @@ export default function ExpensesPage() {
     if (file) e.target.value = '';
     if (!file) return;
 
-    if (banks.length === 0 || categories.length === 0) {
-      alert('Please add at least one bank and one expense category before importing.');
+    if (banks.length === 0) {
+      alert('Please add at least one bank before importing. (Categories are auto-created from the CSV.)');
       return;
     }
 
     setImporting(true);
     try {
       const text = await file.text();
-      const { rows, receiptDriveUrls, errors } = buildImportRows(text, 'expense', categories, banks);
+
+      // Auto-create any category names in the CSV that don't already exist
+      // (case-insensitive). Keeps CSV imports friction-free even for brand
+      // new categories.
+      const csvCatNames = extractCsvCategoryNames(text);
+      const existingLower = new Set(categories.map((c) => c.name.toLowerCase()));
+      const toCreate = csvCatNames.filter((n) => !existingLower.has(n.toLowerCase()));
+      let effectiveCategories = categories;
+      if (toCreate.length > 0) {
+        const { data: created, error: createErr } = await supabase
+          .from('categories')
+          .insert(toCreate.map((name) => ({ type: 'expense', name, is_default: false })))
+          .select();
+        if (createErr) {
+          alert(`Failed to auto-create categories: ${createErr.message}`);
+          return;
+        }
+        effectiveCategories = [...categories, ...(created || [])];
+        setCategories(effectiveCategories);
+      }
+
+      const { rows, receiptDriveUrls, errors } = buildImportRows(text, 'expense', effectiveCategories, banks);
 
       if (rows.length === 0) {
         alert(`No valid rows to import.\n\nErrors:\n${errors.map((er) => `Line ${er.line}: ${er.message}`).join('\n')}`);

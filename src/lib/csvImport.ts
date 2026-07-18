@@ -26,6 +26,22 @@ export interface ImportResult {
 
 const REQUIRED = ['transaction_date', 'description', 'amount', 'category', 'account_number'];
 
+// Pre-pass helper: scan a CSV and return the unique, trimmed, non-empty
+// category strings from the "category" column, preserving the casing the
+// user typed. Callers use this to detect categories that need to be
+// auto-created before running buildImportRows.
+export const extractCsvCategoryNames = (csv: string): string[] => {
+  const parsed = parseCSV(csv);
+  const seen = new Map<string, string>(); // lower-case → first-seen casing
+  for (const row of parsed) {
+    const raw = (row.category || '').trim();
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (!seen.has(key)) seen.set(key, raw);
+  }
+  return Array.from(seen.values());
+};
+
 export const csvTemplate = (kind: TxKind): string => {
   return [
     'transaction_date,description,amount,category,account_number,payee_name,notes,receipt_drive_url',

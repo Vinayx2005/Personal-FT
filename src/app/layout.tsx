@@ -5,12 +5,18 @@ export const metadata = {
   title: "Teja's Finance Tracker",
   description: 'Personal finance tracker',
   manifest: '/manifest.json',
-  themeColor: '#F37335',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default' as const,
     title: 'Personal FT',
   },
+};
+
+export const viewport = {
+  themeColor: '#F37335',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover' as const,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
