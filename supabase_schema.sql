@@ -178,12 +178,22 @@ CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC);
 
 -- ============================================================================
--- 7. ROW LEVEL SECURITY (solo user — own-row only)
+-- 7. ROW LEVEL SECURITY (solo user)
 -- ============================================================================
+-- Users table: own-row only. All other tables: any authenticated user has
+-- full access (single-user personal setup). Supabase Studio may prompt to
+-- enable RLS on any table — with permissive policies in place, that toggle
+-- becomes safe.
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bank_reconciliation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE banks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bank_balance_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE investments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE monthly_balances ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "users_authenticated_own" ON users;
 CREATE POLICY "users_authenticated_own" ON users
@@ -195,6 +205,30 @@ CREATE POLICY "transactions_authenticated" ON transactions
 
 DROP POLICY IF EXISTS "bank_reconciliation_authenticated" ON bank_reconciliation;
 CREATE POLICY "bank_reconciliation_authenticated" ON bank_reconciliation
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "categories_authenticated" ON categories;
+CREATE POLICY "categories_authenticated" ON categories
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "banks_authenticated" ON banks;
+CREATE POLICY "banks_authenticated" ON banks
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "bank_balance_history_authenticated" ON bank_balance_history;
+CREATE POLICY "bank_balance_history_authenticated" ON bank_balance_history
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "investments_authenticated" ON investments;
+CREATE POLICY "investments_authenticated" ON investments
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "monthly_balances_authenticated" ON monthly_balances;
+CREATE POLICY "monthly_balances_authenticated" ON monthly_balances
+  FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "audit_log_authenticated" ON audit_log;
+CREATE POLICY "audit_log_authenticated" ON audit_log
   FOR ALL USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
 
 -- ============================================================================
