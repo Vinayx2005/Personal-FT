@@ -136,15 +136,47 @@ const parseCSVLine = (line: string): string[] => {
   return cells.map((c) => c.trim());
 };
 
+// Split a CSV string into logical rows. A logical row can span multiple
+// physical lines when a value contains a newline inside a quoted field —
+// Excel and Google Sheets emit these routinely (e.g. addresses, multi-line
+// descriptions). Newlines OUTSIDE quotes are row separators; newlines INSIDE
+// quotes stay in the value.
+const splitCSVRows = (csv: string): string[] => {
+  const src = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const rows: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === '"') {
+      // Preserve doubled quotes literally so parseCSVLine handles them
+      if (inQuotes && src[i + 1] === '"') {
+        cur += '""';
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      cur += ch;
+    } else if (ch === '\n' && !inQuotes) {
+      if (cur.trim().length > 0) rows.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim().length > 0) rows.push(cur);
+  return rows;
+};
+
 export const parseCSV = (csv: string): Record<string, string>[] => {
-  const lines = csv.replace(/\r\n/g, '\n').trim().split('\n').filter((l) => l.trim().length);
-  if (lines.length < 2) return [];
-  const headers = parseCSVLine(lines[0]).map((h) => h.toLowerCase());
-  return lines.slice(1).map((line) => {
-    const values = parseCSVLine(line);
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => (row[h] = values[i] ?? ''));
-    return row;
+  const rows = splitCSVRows(csv);
+  if (rows.length < 2) return [];
+  const headers = parseCSVLine(rows[0]).map((h) => h.toLowerCase());
+  return rows.slice(1).map((row) => {
+    const values = parseCSVLine(row);
+    const out: Record<string, string> = {};
+    headers.forEach((h, i) => (out[h] = values[i] ?? ''));
+    return out;
   });
 };
 
