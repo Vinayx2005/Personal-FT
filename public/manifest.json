@@ -1,0 +1,33 @@
+{
+  "name": "Teja's Finance Tracker",
+  "short_name": "Personal FT",
+  "description": "Personal finance tracker — quick expense logging",
+  "start_url": "/quick",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAFAFA",
+  "theme_color": "#F37335",
+  "icons": [
+    {
+      "src": "/images/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Add",
+      "short_name": "Add",
+      "description": "Log an expense",
+      "url": "/quick"
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View overview",
+      "url": "/dashboard"
+    }
+  ]
+}

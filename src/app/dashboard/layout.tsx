@@ -16,9 +16,11 @@ import {
   LogOut,
   ScrollText,
   PiggyBank,
+  Zap,
 } from 'lucide-react';
 
 const navItems: { label: string; href: string; icon: typeof BarChart3 }[] = [
+  { label: 'Quick Add', href: '/quick', icon: Zap },
   { label: 'Dashboard', href: '/dashboard', icon: BarChart3 },
   { label: 'Expenses', href: '/dashboard/expenses', icon: IndianRupee },
   { label: 'Income', href: '/dashboard/income', icon: TrendingUp },
