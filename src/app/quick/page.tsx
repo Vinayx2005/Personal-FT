@@ -68,16 +68,22 @@ export default function QuickAddPage() {
         .select('id, name')
         .eq('type', 'expense');
       if (catsErr) throw catsErr;
-      const category = (cats || []).find(
+      let category = (cats || []).find(
         (c) => c.name.toLowerCase() === categoryName.toLowerCase()
       );
+      let createdCategory = false;
       if (!category) {
-        const options = (cats || []).map((c) => c.name).join(', ');
-        setFeedback({
-          type: 'error',
-          text: `Unknown category "${categoryName}"\n\nOptions: ${options || '(none set up yet)'}`,
-        });
-        return;
+        // Auto-create the category as an expense category. Case-insensitive
+        // uniqueness is enforced by the code (existing lookup above) — the
+        // DB uses UNIQUE(type, name), so retype in the same casing is safe.
+        const { data: newCat, error: createErr } = await supabase
+          .from('categories')
+          .insert({ type: 'expense', name: categoryName.trim(), is_default: false })
+          .select('id, name')
+          .single();
+        if (createErr) throw createErr;
+        category = newCat;
+        createdCategory = true;
       }
 
       const { data: banks, error: banksErr } = await supabase
@@ -140,7 +146,9 @@ export default function QuickAddPage() {
 
       setFeedback({
         type: 'success',
-        text: `Saved ${formatCurrency(amount)} · ${category.name} / ${bank.bank_name}`,
+        text: `Saved ${formatCurrency(amount)} · ${category.name} / ${bank.bank_name}${
+          createdCategory ? ` (new category created)` : ''
+        }`,
       });
       setText('');
       // Refocus for next entry
@@ -227,7 +235,7 @@ export default function QuickAddPage() {
           <p className="font-bold uppercase text-[10px] tracking-wide mb-1">Format</p>
           <p>Line 1: <strong>amount</strong> (e.g. 500)</p>
           <p>Line 2: <strong>description</strong></p>
-          <p>Line 3: <strong>category</strong> (exact match)</p>
+          <p>Line 3: <strong>category</strong> (auto-created if new)</p>
           <p>Line 4: <strong>bank</strong> (keyword, e.g. &quot;HDFC&quot;)</p>
         </div>
       </main>
