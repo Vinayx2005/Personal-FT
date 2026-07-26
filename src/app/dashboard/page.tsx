@@ -74,12 +74,16 @@ function KpiCard({ label, value, sub, icon: Icon, trend, glow = false }: KpiCard
         {/* Label */}
         <p className="text-sm text-white/70 mb-2">{label}</p>
 
-        {/* Value + trend */}
-        <div className="flex items-baseline gap-3">
-          <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">{value}</h3>
+        {/* Value + trend — flex-wrap so the trend chip drops to a new line
+            when the amount is too wide to fit beside it (large ₹ values on
+            narrow cards). */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2 min-w-0">
+          <h3 className="text-3xl md:text-[2rem] xl:text-3xl 2xl:text-4xl font-black text-white tracking-tight leading-none break-words">
+            {value}
+          </h3>
           {trend && (
             <span
-              className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${
+              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${
                 trend.direction === 'up'
                   ? 'text-green-300 bg-green-900/40'
                   : 'text-red-300 bg-red-900/40'
