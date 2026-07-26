@@ -541,7 +541,7 @@ export default function ReportsPage() {
                       // Keeps labels far from the pie so they can breathe.
                       labelLine={(props: any) => {
                         const { cx, cy, midAngle, outerRadius, percent } = props;
-                        if (percent < 0.03) return null;
+                        if (percent < 0.03) return <g />;
                         const RADIAN = Math.PI / 180;
                         const sin = Math.sin(-midAngle * RADIAN);
                         const cos = Math.cos(-midAngle * RADIAN);
