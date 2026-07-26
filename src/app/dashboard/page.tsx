@@ -109,6 +109,9 @@ export default function DashboardPage() {
     totalIncome: 0,
     totalExpenses: 0,
   });
+  // net (income − expense) across ALL time, keyed by bank_id.
+  // Used to show current live balance per bank, independent of the KPI date range.
+  const [bankNet, setBankNet] = useState<Record<number, number>>({});
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DateRange>(defaultRange());
@@ -133,6 +136,21 @@ export default function DashboardPage() {
           .gte('transaction_date', range.from)
           .lte('transaction_date', range.to)
           .eq('status', 'posted');
+
+        // Per-bank net across ALL time (for live bank balances).
+        // Transfers ARE included here — moving money between accounts is real
+        // movement; only P&L totals exclude them.
+        const { data: allTxData } = await supabase
+          .from('transactions')
+          .select('bank_id, transaction_type, amount')
+          .eq('status', 'posted');
+        const netByBank: Record<number, number> = {};
+        (allTxData || []).forEach((t: any) => {
+          if (!t.bank_id) return;
+          const delta = t.transaction_type === 'income' ? t.amount : -t.amount;
+          netByBank[t.bank_id] = (netByBank[t.bank_id] || 0) + delta;
+        });
+        setBankNet(netByBank);
 
         let totalIncome = 0;
         let totalExpenses = 0;
@@ -180,7 +198,10 @@ export default function DashboardPage() {
   }
 
   const profit = data.totalIncome - data.totalExpenses;
-  const currentBalance = data.totalCash + profit;
+  // Live current balance across ALL banks = sum(opening) + sum(all-time net).
+  // Independent of the date range picker.
+  const allTimeNet = Object.values(bankNet).reduce((s, v) => s + v, 0);
+  const currentBalance = data.totalCash + allTimeNet;
   const isBrandNew = data.banks.length === 0 && data.totalIncome === 0 && data.totalExpenses === 0;
   const savingsRate = data.totalIncome > 0 ? Math.round((profit / data.totalIncome) * 100) : 0;
 
@@ -289,7 +310,9 @@ export default function DashboardPage() {
           {data.banks.length > 0 ? (
             <div className="space-y-2">
               {data.banks.map((bank, i) => {
-                const balance = (bank as Bank & { opening_balance?: number }).opening_balance || 0;
+                const opening = (bank as Bank & { opening_balance?: number }).opening_balance || 0;
+                const net = bankNet[bank.id] || 0;
+                const current = opening + net;
                 return (
                   <div
                     key={bank.id}
@@ -306,14 +329,15 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-white">{bank.bank_name}</p>
-                        <p className="text-xs text-white/50">{bank.account_number}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-white group-hover:text-18-orange transition-colors">
-                        {formatCurrency(balance)}
+                        {formatCurrency(current)}
                       </p>
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider">Opening</p>
+                      <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">
+                        Current · opening {formatCurrency(opening)}
+                      </p>
                     </div>
                   </div>
                 );

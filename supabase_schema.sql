@@ -86,7 +86,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   description VARCHAR(500),
   amount DECIMAL(15,2) NOT NULL,
   transaction_date DATE NOT NULL,
-  payee_name VARCHAR(255),
   transfer_group_id UUID,
   status VARCHAR(20) DEFAULT 'posted' CHECK (status IN ('posted', 'draft', 'reconciled')),
   notes TEXT,

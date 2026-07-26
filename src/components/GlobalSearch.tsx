@@ -55,10 +55,10 @@ export default function GlobalSearch() {
       const [tx, banks, cats, users] = await Promise.all([
         supabase
           .from('transactions')
-          .select('id, transaction_type, description, payee_name, amount, transaction_date, notes')
+          .select('id, transaction_type, description, amount, transaction_date, notes')
           .order('transaction_date', { ascending: false })
           .limit(500),
-        supabase.from('banks').select('id, bank_name, account_number, account_holder').limit(200),
+        supabase.from('banks').select('id, bank_name').limit(200),
         supabase.from('categories').select('id, type, name').limit(500),
         supabase.from('users').select('id, full_name, email').limit(200),
       ]);
@@ -84,15 +84,14 @@ export default function GlobalSearch() {
     for (const t of data.transactions) {
       if (
         matches(t.description) ||
-        matches(t.payee_name) ||
         matches(t.notes) ||
         String(t.amount).includes(q)
       ) {
         const kind = t.transaction_type === 'income' ? 'Income' : 'Expense';
         out.push({
           key: `tx-${t.id}`,
-          label: `${kind}: ${t.description || t.payee_name || '(no description)'}`,
-          sub: `${formatCurrency(t.amount)} · ${formatDate(t.transaction_date)}${t.payee_name ? ` · ${t.payee_name}` : ''}`,
+          label: `${kind}: ${t.description || '(no description)'}`,
+          sub: `${formatCurrency(t.amount)} · ${formatDate(t.transaction_date)}`,
           module: kind,
           href:
             (t.transaction_type === 'income' ? '/dashboard/income' : '/dashboard/expenses') +
@@ -101,11 +100,11 @@ export default function GlobalSearch() {
       }
     }
     for (const b of data.banks) {
-      if (matches(b.bank_name) || matches(b.account_number) || matches(b.account_holder)) {
+      if (matches(b.bank_name)) {
         out.push({
           key: `bank-${b.id}`,
           label: `Bank: ${b.bank_name}`,
-          sub: `${b.account_number}${b.account_holder ? ` · ${b.account_holder}` : ''}`,
+          sub: 'Bank / Card',
           module: 'Settings',
           href: '/dashboard/settings',
         });
@@ -164,7 +163,7 @@ export default function GlobalSearch() {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search transactions, banks, payees, categories, team…"
+                placeholder="Search transactions, banks, categories, team…"
                 className="flex-1 outline-none text-sm bg-transparent"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

@@ -10,7 +10,6 @@ export interface ImportedRow {
   amount: number;
   category_id: number;
   bank_id: number;
-  payee_name: string;
   notes: string;
   status: 'posted';
 }
@@ -24,7 +23,7 @@ export interface ImportResult {
   errors: { line: number; message: string }[];
 }
 
-const REQUIRED = ['transaction_date', 'description', 'amount', 'category', 'account_number'];
+const REQUIRED = ['transaction_date', 'description', 'amount', 'category', 'bank'];
 
 // Pre-pass helper: scan a CSV and return the unique, trimmed, non-empty
 // category strings from the "category" column, preserving the casing the
@@ -44,9 +43,9 @@ export const extractCsvCategoryNames = (csv: string): string[] => {
 
 export const csvTemplate = (kind: TxKind): string => {
   return [
-    'transaction_date,description,amount,category,account_number,payee_name,notes,receipt_drive_url',
-    `01-04-2026,${kind === 'expense' ? 'Groceries' : 'Salary'},5000,General,10173398655,Sample Payee,Optional notes,https://drive.google.com/file/d/YOUR_FILE_ID/view?usp=sharing`,
-    `02-04-2026,${kind === 'expense' ? 'Fuel' : 'Freelance'},1200,General,10173398655,,,`,
+    'transaction_date,description,amount,category,bank,notes,receipt_drive_url',
+    `01-04-2026,${kind === 'expense' ? 'Groceries' : 'Salary'},5000,General,HDFC,Optional notes,https://drive.google.com/file/d/YOUR_FILE_ID/view?usp=sharing`,
+    `02-04-2026,${kind === 'expense' ? 'Fuel' : 'Freelance'},1200,General,HDFC,,`,
   ].join('\n');
 };
 
@@ -74,7 +73,9 @@ export const buildImportRows = (
   const receiptDriveUrls: (string | null)[] = [];
 
   const catByName = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]));
-  const bankByAcct = new Map(banks.map((b) => [String(b.account_number).trim(), b.id]));
+  // Match banks by name (case-insensitive). Personal use = each user's bank
+  // names are unique per user; account numbers were removed from the model.
+  const bankByName = new Map(banks.map((b) => [b.bank_name.toLowerCase(), b.id]));
 
   parsed.forEach((row, idx) => {
     const line = idx + 2; // +1 for header, +1 for 1-indexed
@@ -99,9 +100,9 @@ export const buildImportRows = (
       errors.push({ line, message: `unknown category "${row.category}"` });
       return;
     }
-    const bank_id = bankByAcct.get(String(row.account_number).trim());
+    const bank_id = bankByName.get(String(row.bank).trim().toLowerCase());
     if (!bank_id) {
-      errors.push({ line, message: `unknown account_number "${row.account_number}"` });
+      errors.push({ line, message: `unknown bank "${row.bank}" — add it under Settings → Banks/Cards first` });
       return;
     }
 
@@ -112,7 +113,6 @@ export const buildImportRows = (
       amount,
       category_id,
       bank_id,
-      payee_name: row.payee_name || '',
       notes: row.notes || '',
       status: 'posted',
     });

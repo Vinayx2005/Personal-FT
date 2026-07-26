@@ -21,7 +21,6 @@ interface ExpenseForm {
   bank_id: number;
   category_id: number;
   transaction_date: string;
-  payee_name: string;
   notes: string;
   receipt_url: string | null;
 }
@@ -53,7 +52,6 @@ export default function ExpensesPage() {
     bank_id: 0,
     category_id: 0,
     transaction_date: new Date().toISOString().split('T')[0],
-    payee_name: '',
     notes: '',
     receipt_url: null,
   });
@@ -405,7 +403,6 @@ export default function ExpensesPage() {
       bank_id: 0,
       category_id: 0,
       transaction_date: new Date().toISOString().split('T')[0],
-      payee_name: '',
       notes: '',
       receipt_url: null,
     });
@@ -430,8 +427,7 @@ export default function ExpensesPage() {
     if (categoryFilter.size > 0 && !categoryFilter.has(e.category_id)) return false;
     if (q) {
       const desc = (e.description || '').toLowerCase();
-      const payee = (e.payee_name || '').toLowerCase();
-      if (!desc.includes(q) && !payee.includes(q)) return false;
+      if (!desc.includes(q)) return false;
     }
     if (minA !== null && !isNaN(minA) && (e.amount || 0) < minA) return false;
     if (maxA !== null && !isNaN(maxA) && (e.amount || 0) > maxA) return false;
@@ -529,7 +525,7 @@ export default function ExpensesPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
           <input
             type="text"
-            placeholder="Search description or payee…"
+            placeholder="Search description…"
             className="form-input md:col-span-2 !py-2 text-sm"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -703,16 +699,6 @@ export default function ExpensesPage() {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Payee Name</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={form.payee_name}
-                  onChange={(e) => setForm({ ...form, payee_name: e.target.value })}
-                />
-              </div>
-
               <div className="form-group md:col-span-2">
                 <label className="form-label">Receipt / Invoice</label>
                 <div className="flex flex-wrap items-center gap-2">
@@ -834,11 +820,37 @@ export default function ExpensesPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th className="w-8"></th>
+                      <th className="w-8">
+                        {(() => {
+                          const ids = g.items.map((x) => x.id);
+                          const total = ids.length;
+                          const selectedInGroup = ids.filter((id) => selectedIds.has(id)).length;
+                          const allChecked = total > 0 && selectedInGroup === total;
+                          const partial = selectedInGroup > 0 && !allChecked;
+                          return (
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 accent-red-600 cursor-pointer"
+                              title={allChecked ? 'Deselect all in this month' : 'Select all in this month'}
+                              aria-label={allChecked ? 'Deselect all in this month' : 'Select all in this month'}
+                              checked={allChecked}
+                              ref={(el) => {
+                                if (el) el.indeterminate = partial;
+                              }}
+                              onChange={(e) => {
+                                const next = new Set(selectedIds);
+                                if (e.target.checked) ids.forEach((id) => next.add(id));
+                                else ids.forEach((id) => next.delete(id));
+                                setSelectedIds(next);
+                              }}
+                            />
+                          );
+                        })()}
+                      </th>
                       <th>Date</th>
                       <th>Category</th>
-                      <th>Payee</th>
                       <th>Description</th>
+                      <th>Bank</th>
                       <th className="text-right">Amount</th>
                       <th className="text-center">Actions</th>
                     </tr>
@@ -846,9 +858,10 @@ export default function ExpensesPage() {
                   <tbody>
                     {g.items.map((expense) => {
                       const category = categories.find((c) => c.id === expense.category_id);
+                      const bank = banks.find((b) => b.id === expense.bank_id);
                       const checked = selectedIds.has(expense.id);
                       return (
-                        <tr key={expense.id} id={`row-tx-${expense.id}`} className={checked ? 'bg-red-50' : ''}>
+                        <tr key={expense.id} id={`row-tx-${expense.id}`} className={checked ? 'bg-red-500/10' : ''}>
                           <td>
                             <input
                               type="checkbox"
@@ -872,17 +885,11 @@ export default function ExpensesPage() {
                           className="text-left hover:text-18-orange transition-colors"
                           title="View details"
                         >
-                          {expense.payee_name || <span className="text-18-dark-text italic">—</span>}
-                        </button>
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => openView(expense)}
-                          className="text-left hover:text-18-orange transition-colors"
-                          title="View details"
-                        >
                           {expense.description || <span className="text-18-dark-text italic">—</span>}
                         </button>
+                      </td>
+                      <td className="whitespace-nowrap text-white/80">
+                        {bank?.bank_name || <span className="text-18-dark-text italic">—</span>}
                       </td>
                       <td className="text-right font-bold">
                         {formatCurrency(expense.amount)}
@@ -906,7 +913,6 @@ export default function ExpensesPage() {
                                 bank_id: expense.bank_id,
                                 category_id: expense.category_id,
                                 transaction_date: expense.transaction_date,
-                                payee_name: expense.payee_name || '',
                                 notes: expense.notes || '',
                                 receipt_url: expense.receipt_url || null,
                               });
@@ -955,7 +961,7 @@ export default function ExpensesPage() {
                     Expense · {formatDate(exp.transaction_date)}
                   </p>
                   <h2 className="text-xl font-bold text-white mt-1">
-                    {exp.description || exp.payee_name || 'Untitled expense'}
+                    {exp.description || 'Untitled expense'}
                   </h2>
                 </div>
                 <button
@@ -972,10 +978,6 @@ export default function ExpensesPage() {
                   <p className="text-lg font-bold text-white">
                     {formatCurrency(exp.amount)}
                   </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase font-bold text-18-dark-text mb-1">Payee</p>
-                  <p className="text-sm">{exp.payee_name || '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase font-bold text-18-dark-text mb-1">Bank</p>

@@ -17,10 +17,8 @@ import {
   ScrollText,
   PiggyBank,
   Zap,
-  BellDot,
-  RefreshCw,
-  Calendar,
   Sparkles,
+  Flame,
 } from 'lucide-react';
 
 type NavSection = {
@@ -32,8 +30,9 @@ const navSections: NavSection[] = [
   {
     label: 'Insights',
     items: [
-      { label: 'Dashboard', href: '/dashboard',         icon: LayoutDashboard },
-      { label: 'Reports',   href: '/dashboard/reports', icon: Sparkles },
+      { label: 'Dashboard', href: '/dashboard',          icon: LayoutDashboard },
+      { label: 'Insights',  href: '/dashboard/insights', icon: Flame },
+      { label: 'Reports',   href: '/dashboard/reports',  icon: Sparkles },
     ],
   },
   {
@@ -235,31 +234,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <div className="flex-1">
               <GlobalSearch />
             </div>
-
-            {/* Action pills */}
-            <button
-              onClick={() => window.location.reload()}
-              className="h-10 w-10 rounded-full bg-18-surface border border-18-border flex items-center justify-center text-gray-400 hover:text-white hover:border-18-orange/50 transition-colors"
-              title="Refresh"
-              aria-label="Refresh"
-            >
-              <RefreshCw size={16} />
-            </button>
-            <button
-              className="h-10 w-10 rounded-full bg-18-surface border border-18-border flex items-center justify-center text-gray-400 hover:text-white hover:border-18-orange/50 transition-colors hidden sm:flex"
-              title="Calendar"
-              aria-label="Calendar"
-            >
-              <Calendar size={16} />
-            </button>
-            <button
-              className="h-10 w-10 rounded-full bg-18-surface border border-18-border flex items-center justify-center text-gray-400 hover:text-white hover:border-18-orange/50 transition-colors hidden sm:flex relative"
-              title="Notifications"
-              aria-label="Notifications"
-            >
-              <BellDot size={16} />
-              <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-18-orange" />
-            </button>
           </div>
         </header>
 

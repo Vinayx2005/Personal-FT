@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { logAction } from '@/lib/auditLog';
 import { fetchCurrentStreak } from '@/lib/streak';
-import { Flame, Zap, Check, AlertCircle } from 'lucide-react';
+import { parseVoiceInput, toQuickAddText } from '@/lib/voiceParse';
+import { Flame, Zap, Check, AlertCircle, Mic, Loader2 } from 'lucide-react';
 
 interface Feedback {
   type: 'success' | 'error';
@@ -21,6 +22,11 @@ export default function QuickAddPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [streak, setStreak] = useState(0);
+  // Voice input state
+  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'unsupported'>('idle');
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voiceMissing, setVoiceMissing] = useState<string[]>([]);
+  const recognitionRef = useRef<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -124,7 +130,6 @@ export default function QuickAddPage() {
           description,
           amount,
           transaction_date: today,
-          payee_name: '',
           notes: 'via quick add',
           status: 'posted',
           created_by: userId,
@@ -162,6 +167,79 @@ export default function QuickAddPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ---------- Voice input ----------
+
+  const handleMicClick = async () => {
+    // If already listening, stop.
+    if (voiceState === 'listening') {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const SR: any =
+      typeof window !== 'undefined'
+        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+        : null;
+    if (!SR) {
+      setVoiceState('unsupported');
+      setFeedback({
+        type: 'error',
+        text: 'Voice input isn’t supported in this browser. Try Chrome (desktop or Android) or Safari 14.5+.',
+      });
+      return;
+    }
+
+    // Pull user's actual banks + categories so the parser can match against them
+    const [banksRes, catsRes] = await Promise.all([
+      supabase.from('banks').select('bank_name').eq('is_active', true),
+      supabase.from('categories').select('name').eq('type', 'expense'),
+    ]);
+    const banks: string[] = (banksRes.data || []).map((b: any) => b.bank_name).filter(Boolean);
+    const categories: string[] = (catsRes.data || []).map((c: any) => c.name).filter(Boolean);
+
+    const recognition = new SR();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+    recognitionRef.current = recognition;
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript || '';
+      const parsed = parseVoiceInput(transcript, banks, categories);
+      const nextText = toQuickAddText(parsed);
+      setText(nextText);
+      setVoiceTranscript(transcript);
+      setVoiceMissing(parsed.missing);
+      // Highlight in the textarea for quick edits
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    };
+    recognition.onerror = (event: any) => {
+      setVoiceState('idle');
+      const kind = event?.error || 'error';
+      const friendly =
+        kind === 'not-allowed' || kind === 'service-not-allowed'
+          ? 'Mic permission blocked. Allow microphone access for this site.'
+          : kind === 'no-speech'
+          ? 'Didn’t catch that — try again.'
+          : `Voice input failed (${kind}).`;
+      setFeedback({ type: 'error', text: friendly });
+    };
+    recognition.onend = () => {
+      setVoiceState('idle');
+    };
+
+    setFeedback(null);
+    setVoiceTranscript(null);
+    setVoiceMissing([]);
+    setVoiceState('listening');
+    try {
+      recognition.start();
+    } catch {
+      setVoiceState('idle');
     }
   };
 
@@ -205,7 +283,55 @@ export default function QuickAddPage() {
                 <p className="text-xs text-white/50">amount / description / category / bank</p>
               </div>
             </div>
+
+            {/* Voice input */}
+            <button
+              type="button"
+              onClick={handleMicClick}
+              disabled={voiceState === 'unsupported'}
+              title={
+                voiceState === 'listening'
+                  ? 'Stop listening'
+                  : 'Speak to fill — e.g. "Paid 500 for noodles from SBI today"'
+              }
+              className={`relative h-11 w-11 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                voiceState === 'listening'
+                  ? 'bg-18-orange text-white shadow-[0_0_30px_rgba(243,115,53,0.75)]'
+                  : 'bg-18-orange/15 border border-18-orange/40 text-18-orange hover:bg-18-orange/25'
+              }`}
+              aria-label="Voice input"
+            >
+              {voiceState === 'listening' ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span className="absolute inset-0 rounded-full bg-18-orange/40 animate-ping" />
+                </>
+              ) : (
+                <Mic size={18} />
+              )}
+            </button>
           </div>
+
+          {voiceState === 'listening' && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-18-orange font-semibold">
+              <span className="inline-block h-2 w-2 rounded-full bg-18-orange animate-pulse" />
+              Listening… speak now
+            </div>
+          )}
+
+          {voiceTranscript && (
+            <div className="mb-3 p-3 rounded-xl bg-18-bg border border-18-border">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">
+                Heard
+              </p>
+              <p className="text-sm text-white italic">&ldquo;{voiceTranscript}&rdquo;</p>
+              {voiceMissing.length > 0 && (
+                <p className="text-xs text-yellow-300/80 mt-2">
+                  Couldn&apos;t catch: <strong>{voiceMissing.join(', ')}</strong> — fill in above.
+                </p>
+              )}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <textarea

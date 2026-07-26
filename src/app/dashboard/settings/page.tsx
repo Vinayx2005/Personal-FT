@@ -10,14 +10,13 @@ import { logAction } from '@/lib/auditLog';
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [banks, setBanks] = useState<Bank[]>([]);
+  // net (income − expense) across all time, keyed by bank_id — for live balance display
+  const [bankNet, setBankNet] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [showBankForm, setShowBankForm] = useState(false);
 
   const [bankForm, setBankForm] = useState({
     bank_name: '',
-    account_number: '',
-    account_holder: '',
-    ifsc_code: '',
     opening_balance: 0,
   });
 
@@ -49,6 +48,19 @@ export default function SettingsPage() {
         const { data: banksData } = await supabase.from('banks').select('*');
         const { data: categoriesData } = await supabase.from('categories').select('*');
 
+        // Per-bank net across all time (transfers included — real money movement)
+        const { data: allTxData } = await supabase
+          .from('transactions')
+          .select('bank_id, transaction_type, amount')
+          .eq('status', 'posted');
+        const net: Record<number, number> = {};
+        (allTxData || []).forEach((t: any) => {
+          if (!t.bank_id) return;
+          const delta = t.transaction_type === 'income' ? t.amount : -t.amount;
+          net[t.bank_id] = (net[t.bank_id] || 0) + delta;
+        });
+        setBankNet(net);
+
         setBanks(banksData || []);
         setExpenseCategories((categoriesData || []).filter((c: Category) => c.type === 'expense'));
         setIncomeCategories((categoriesData || []).filter((c: Category) => c.type === 'income'));
@@ -66,9 +78,6 @@ export default function SettingsPage() {
   const resetBankForm = () => {
     setBankForm({
       bank_name: '',
-      account_number: '',
-      account_holder: '',
-      ifsc_code: '',
       opening_balance: 0,
     });
     setEditingBankId(null);
@@ -78,8 +87,8 @@ export default function SettingsPage() {
   const handleSaveBank = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!bankForm.bank_name || !bankForm.account_number) {
-      alert('Please fill required fields');
+    if (!bankForm.bank_name.trim()) {
+      alert('Bank name is required');
       return;
     }
 
@@ -155,7 +164,7 @@ export default function SettingsPage() {
           action: 'create',
           table_name: 'banks',
           record_id: data.id,
-          description: `Added bank: ${bankForm.bank_name} (${bankForm.account_number}) — opening ${formatCurrency(bankForm.opening_balance)}`,
+          description: `Added bank: ${bankForm.bank_name} — opening ${formatCurrency(bankForm.opening_balance)}`,
           new_values: bankForm,
         });
 
@@ -172,9 +181,6 @@ export default function SettingsPage() {
   const startEditBank = (bank: Bank) => {
     setBankForm({
       bank_name: bank.bank_name,
-      account_number: bank.account_number,
-      account_holder: bank.account_holder || '',
-      ifsc_code: bank.ifsc_code || '',
       opening_balance: bank.opening_balance || 0,
     });
     setEditingBankId(bank.id);
@@ -270,7 +276,7 @@ export default function SettingsPage() {
         action: 'delete',
         table_name: 'banks',
         record_id: id,
-        description: `Deleted bank: ${prev?.bank_name} (${prev?.account_number})`,
+        description: `Deleted bank: ${prev?.bank_name}`,
         old_values: prev as any,
       });
       alert('Bank deleted');
@@ -290,7 +296,7 @@ export default function SettingsPage() {
       {/* Banks Section */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white">Banks</h2>
+          <h2 className="text-2xl font-bold text-white">Banks/Cards</h2>
           <button
             onClick={() => {
               if (showBankForm) {
@@ -304,7 +310,7 @@ export default function SettingsPage() {
             className="btn btn-primary flex items-center gap-2"
           >
             <Plus size={16} />
-            Add Bank
+            Add Bank/Card
           </button>
         </div>
 
@@ -312,7 +318,7 @@ export default function SettingsPage() {
           <div className="card bg-18-surface border-18-border mb-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">
-                {editingBankId ? 'Edit Bank' : 'Add New Bank'}
+                {editingBankId ? 'Edit Bank/Card' : 'Add New Bank/Card'}
               </h3>
               <button
                 onClick={() => {
@@ -335,38 +341,6 @@ export default function SettingsPage() {
                     value={bankForm.bank_name}
                     onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
                     required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Account Number *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={bankForm.account_number}
-                    onChange={(e) =>
-                      setBankForm({ ...bankForm, account_number: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Account Holder</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={bankForm.account_holder}
-                    onChange={(e) =>
-                      setBankForm({ ...bankForm, account_holder: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">IFSC Code</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={bankForm.ifsc_code}
-                    onChange={(e) => setBankForm({ ...bankForm, ifsc_code: e.target.value })}
                   />
                 </div>
                 <div className="form-group md:col-span-2">
@@ -408,7 +382,7 @@ export default function SettingsPage() {
               </div>
 
               <button type="submit" className="btn btn-primary">
-                {editingBankId ? 'Save Changes' : 'Add Bank'}
+                {editingBankId ? 'Save Changes' : 'Add Bank/Card'}
               </button>
             </form>
           </div>
@@ -417,21 +391,33 @@ export default function SettingsPage() {
         <div className="card">
           {banks.length > 0 ? (
             <div className="space-y-4">
-              {banks.map((bank) => (
+              {banks.map((bank) => {
+                const opening = bank.opening_balance || 0;
+                const net = bankNet[bank.id] || 0;
+                const current = opening + net;
+                return (
                 <div key={bank.id} className="pb-4 border-b border-18-border last:border-b-0">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-bold text-white">{bank.bank_name}</p>
-                      <p className="text-sm text-18-dark-text">{bank.account_number}</p>
-                      {bank.account_holder && (
-                        <p className="text-xs text-18-dark-text">{bank.account_holder}</p>
-                      )}
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="text-xs text-18-dark-text uppercase font-semibold">Opening</p>
-                        <p className="font-bold text-white">
-                          {formatCurrency(bank.opening_balance || 0)}
+                        <p className="text-xs text-18-dark-text uppercase font-semibold">Current</p>
+                        <p className={`font-bold ${current < 0 ? 'text-red-300' : 'text-white'}`}>
+                          {formatCurrency(current)}
+                        </p>
+                        <p className="text-[10px] text-white/40 mt-0.5">
+                          Opening {formatCurrency(opening)}
+                          {net !== 0 && (
+                            <>
+                              {' · '}
+                              <span className={net > 0 ? 'text-green-400' : 'text-red-400'}>
+                                {net > 0 ? '+' : ''}
+                                {formatCurrency(net)}
+                              </span>
+                            </>
+                          )}
                         </p>
                       </div>
                       <button
@@ -497,7 +483,8 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-18-dark-text text-center py-8">No banks configured</p>

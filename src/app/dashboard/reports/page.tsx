@@ -27,7 +27,17 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DateRange>(rangeFor('current_fy'));
 
-  const COLORS = ['#F37335', '#FFF392', '#1A1A1A', '#494949'];
+  // Category palette — all readable on the dark #0A0A0A background
+  const COLORS = [
+    '#F37335', // brand orange
+    '#FFF392', // brand yellow
+    '#A78BFA', // purple
+    '#22D3EE', // cyan
+    '#4ADE80', // green
+    '#F472B6', // pink
+    '#60A5FA', // blue
+    '#FB7185', // rose
+  ];
 
   useEffect(() => {
     const fetchReportData = async () => {
@@ -114,64 +124,277 @@ export default function ReportsPage() {
     fetchReportData();
   }, [range]);
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    // Build a proper structured PDF instead of dumping the browser page.
+    // Print-safe light theme with the brand orange as the only accent — easy
+    // on the eyes, easy on ink.
+    const { default: JsPDF } = await import('jspdf');
+    const doc = new JsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 48;
+    const contentW = pageW - margin * 2;
+
+    // jsPDF's built-in helvetica is Windows-1252 encoded — no ₹, →, − etc.
+    // Swap them for ASCII substitutes at write time so the report renders
+    // cleanly in every viewer.
+    const pdfSafe = (s: string): string =>
+      s
+        .replace(/₹\s*/g, 'Rs ')
+        .replace(/→/g, 'to')
+        .replace(/[−–—]/g, '-')
+        .replace(/·/g, '-');
+    const money = (n: number): string => pdfSafe(formatCurrency(n));
+
+    // Palette (print-friendly)
+    const orange: [number, number, number] = [243, 115, 53];
+    const green:  [number, number, number] = [17, 138, 96];
+    const red:    [number, number, number] = [204, 51, 51];
+    const ink:    [number, number, number] = [26, 26, 26];
+    const muted:  [number, number, number] = [110, 110, 110];
+    const line:   [number, number, number] = [220, 220, 220];
+    const stripe: [number, number, number] = [248, 248, 248];
+
+    // ------- HEADER (page 1) -------
+    // Logo mark
+    doc.setFillColor(...orange);
+    doc.roundedRect(margin, margin, 26, 26, 6, 6, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('PFT', margin + 13, margin + 17, { align: 'center' });
+
+    // Wordmark
+    doc.setTextColor(...ink);
+    doc.setFontSize(13);
+    doc.text('Personal FT', margin + 36, margin + 17);
+
+    // Report title (top right)
+    doc.setFontSize(9);
+    doc.setTextColor(...muted);
+    doc.setFont('helvetica', 'normal');
+    doc.text('MONTHLY REPORT', pageW - margin, margin + 10, { align: 'right' });
+    doc.setFontSize(11);
+    doc.setTextColor(...ink);
+    doc.setFont('helvetica', 'bold');
+    doc.text(new Date().toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    }), pageW - margin, margin + 24, { align: 'right' });
+
+    // Title block
+    let y = margin + 70;
+    doc.setFontSize(26);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...ink);
+    doc.text('Reports & Analytics', margin, y);
+    y += 20;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...muted);
+    doc.text(
+      `Period: ${formatDate(range.from)}   to   ${formatDate(range.to)}      -      ${pnlData.length} month${pnlData.length === 1 ? '' : 's'}`,
+      margin,
+      y
+    );
+    y += 26;
+    // Divider
+    doc.setDrawColor(...line);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageW - margin, y);
+    y += 22;
+
+    // ------- SUMMARY BOXES -------
+    const boxH = 68;
+    const boxGap = 12;
+    const boxW = (contentW - boxGap * 2) / 3;
+    const boxes: { label: string; value: string; color: [number, number, number]; hint: string }[] = [
+      { label: 'TOTAL REVENUE',  value: money(totalRevenue),  color: green,  hint: 'Income (excl. transfers)' },
+      { label: 'TOTAL EXPENSES', value: money(totalExpenses), color: red,    hint: 'Across all categories' },
+      { label: 'NET',            value: money(totalProfit),   color: totalProfit >= 0 ? orange : red, hint: 'Revenue - Expenses' },
+    ];
+    boxes.forEach((b, i) => {
+      const x = margin + i * (boxW + boxGap);
+      // Card
+      doc.setDrawColor(...line);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(x, y, boxW, boxH, 8, 8, 'FD');
+      // Accent bar on the left
+      doc.setFillColor(...b.color);
+      doc.roundedRect(x, y, 4, boxH, 2, 2, 'F');
+      // Label
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...muted);
+      doc.text(b.label, x + 14, y + 18);
+      // Value
+      doc.setFontSize(18);
+      doc.setTextColor(...b.color);
+      doc.text(b.value, x + 14, y + 42);
+      // Hint
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...muted);
+      doc.text(b.hint, x + 14, y + 58);
+    });
+    y += boxH + 32;
+
+    // ------- MONTHLY PnL TABLE -------
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...ink);
+    doc.text('Monthly PnL', margin, y);
+    y += 14;
+
+    // Column layout
+    const cMonth   = margin + 12;
+    const cRev     = margin + contentW * 0.42;
+    const cExp     = margin + contentW * 0.62;
+    const cNet     = margin + contentW * 0.82;
+    const rowH     = 20;
+
+    const drawTableHeader = (label1: string, l1x: number, cols: { label: string; x: number }[]) => {
+      doc.setFillColor(...ink);
+      doc.roundedRect(margin, y, contentW, 24, 4, 4, 'F');
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(label1, l1x, y + 15);
+      cols.forEach((c) => doc.text(c.label, c.x, y + 15, { align: 'right' }));
+      y += 24;
+    };
+
+    drawTableHeader('MONTH', cMonth, [
+      { label: 'REVENUE',  x: cRev },
+      { label: 'EXPENSES', x: cExp },
+      { label: 'NET',      x: cNet },
+    ]);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    pnlData.forEach((row, i) => {
+      // Page break if needed
+      if (y + rowH > pageH - 60) {
+        doc.addPage();
+        y = margin;
+      }
+      // Row stripe
+      if (i % 2 === 0) {
+        doc.setFillColor(...stripe);
+        doc.rect(margin, y, contentW, rowH, 'F');
+      }
+      doc.setTextColor(...ink);
+      doc.text(row.month, cMonth, y + 14);
+      doc.setTextColor(...green);
+      doc.text(money(row.revenue),  cRev, y + 14, { align: 'right' });
+      doc.setTextColor(...red);
+      doc.text(money(row.expenses), cExp, y + 14, { align: 'right' });
+      const netColor = row.profit >= 0 ? ink : red;
+      doc.setTextColor(...netColor);
+      doc.setFont('helvetica', 'bold');
+      doc.text(money(row.profit),   cNet, y + 14, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      y += rowH;
+    });
+
+    // Total row
+    doc.setDrawColor(...ink);
+    doc.setLineWidth(1);
+    doc.line(margin, y, pageW - margin, y);
+    y += 4;
+    doc.setFillColor(...ink);
+    doc.rect(margin, y, contentW, rowH, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text('TOTAL', cMonth, y + 14);
+    doc.text(money(totalRevenue),  cRev, y + 14, { align: 'right' });
+    doc.text(money(totalExpenses), cExp, y + 14, { align: 'right' });
+    doc.text(money(totalProfit),   cNet, y + 14, { align: 'right' });
+    y += rowH + 30;
+
+    // ------- CATEGORY BREAKDOWN -------
+    // Ensure enough space for header + a couple of rows; else new page
+    if (y + 100 > pageH - 60) {
+      doc.addPage();
+      y = margin;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...ink);
+    doc.text('Expense Breakdown by Category', margin, y);
+    y += 14;
+
+    const cCat = margin + 12;
+    const cAmt = margin + contentW * 0.62;
+    const cPct = margin + contentW * 0.82;
+    const cBar = margin + contentW * 0.40; // right edge of the progress bar
+
+    drawTableHeader('CATEGORY', cCat, [
+      { label: 'AMOUNT', x: cAmt },
+      { label: 'SHARE',  x: cPct },
+    ]);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    categoryBreakdown.forEach((cat, i) => {
+      if (y + rowH > pageH - 60) {
+        doc.addPage();
+        y = margin;
+      }
+      const pct = totalExpenses > 0 ? (cat.value / totalExpenses) * 100 : 0;
+      // Stripe
+      if (i % 2 === 0) {
+        doc.setFillColor(...stripe);
+        doc.rect(margin, y, contentW, rowH, 'F');
+      }
+      // Name
+      doc.setTextColor(...ink);
+      doc.text(pdfSafe(cat.name), cCat, y + 14);
+      // Mini bar (right-aligned inside the name column area)
+      const barMaxW = 80;
+      const barX = cCat + 130;
+      const barY = y + 8;
+      const barH = 5;
+      doc.setFillColor(...line);
+      doc.roundedRect(barX, barY, barMaxW, barH, 2, 2, 'F');
+      doc.setFillColor(...orange);
+      const fillW = Math.max(2, Math.min(barMaxW, (pct / 100) * barMaxW));
+      doc.roundedRect(barX, barY, fillW, barH, 2, 2, 'F');
+      // Amount
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...ink);
+      doc.text(money(cat.value), cAmt, y + 14, { align: 'right' });
+      // %
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...muted);
+      doc.text(`${pct.toFixed(1)}%`, cPct, y + 14, { align: 'right' });
+      y += rowH;
+    });
+
+    // ------- FOOTER on every page -------
+    // @ts-expect-error jsPDF's pages count is offset by 1 (index 0 unused)
+    const pageCount = doc.internal.pages.length - 1;
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setDrawColor(...line);
+      doc.setLineWidth(0.5);
+      doc.line(margin, pageH - 40, pageW - margin, pageH - 40);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...muted);
+      doc.text('Personal FT · personal-ft.vercel.app', margin, pageH - 24);
+      doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - 24, { align: 'right' });
+    }
+
+    doc.save(`Personal-FT_Report_${range.from}_to_${range.to}.pdf`);
+
     logAction({
       action: 'export',
       table_name: 'reports',
       description: `Generated PnL report (PDF) for ${range.from} → ${range.to}`,
       new_values: { format: 'pdf', from: range.from, to: range.to },
     });
-    window.print();
-  };
-
-  const exportExcel = async () => {
-    try {
-      const ExcelJS = (await import('exceljs')).default;
-      const fileSaverMod: any = await import('file-saver');
-      const saveAs = fileSaverMod.saveAs || fileSaverMod.default?.saveAs || fileSaverMod.default;
-      if (typeof saveAs !== 'function') throw new Error('file-saver saveAs not available');
-      const wb = new ExcelJS.Workbook();
-
-      const ws1 = wb.addWorksheet('Monthly PnL');
-      ws1.addRow(['Month', 'Revenue', 'Expenses', 'Net']);
-      ws1.getRow(1).font = { bold: true };
-      pnlData.forEach((d) => {
-        ws1.addRow([d.month, d.revenue, d.expenses, d.profit]);
-      });
-      ws1.addRow([]);
-      ws1.addRow(['Total', totalRevenue, totalExpenses, totalProfit])
-        .font = { bold: true };
-      [2, 3, 4].forEach((c) => (ws1.getColumn(c).numFmt = '#,##0.00;(#,##0.00);-'));
-      ws1.getColumn(1).width = 14;
-      [2, 3, 4].forEach((c) => (ws1.getColumn(c).width = 16));
-
-      const ws2 = wb.addWorksheet('Category Breakdown');
-      ws2.addRow(['Category', 'Amount', '% of Expenses']);
-      ws2.getRow(1).font = { bold: true };
-      categoryBreakdown.forEach((c) => {
-        const pct = totalExpenses ? (c.value / totalExpenses) * 100 : 0;
-        ws2.addRow([c.name, c.value, pct / 100]);
-      });
-      ws2.getColumn(1).width = 30;
-      ws2.getColumn(2).width = 18;
-      ws2.getColumn(2).numFmt = '#,##0.00;(#,##0.00);-';
-      ws2.getColumn(3).numFmt = '0.0%';
-
-      const buf = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buf], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-      saveAs(blob, `PnL_Report_${range.from}_to_${range.to}.xlsx`);
-
-      logAction({
-        action: 'export',
-        table_name: 'reports',
-        description: `Generated PnL report (Excel) for ${range.from} → ${range.to}`,
-        new_values: { format: 'excel', from: range.from, to: range.to },
-      });
-    } catch (err: any) {
-      alert(`Excel export failed: ${err.message}`);
-    }
   };
 
   if (loading) {
@@ -193,11 +416,7 @@ export default function ReportsPage() {
         <div className="flex flex-wrap gap-2">
           <button onClick={exportPDF} className="btn btn-outline flex items-center gap-2">
             <Download size={18} />
-            PDF
-          </button>
-          <button onClick={exportExcel} className="btn btn-outline flex items-center gap-2">
-            <Download size={18} />
-            Excel
+            Download Report
           </button>
         </div>
       </div>
@@ -233,15 +452,18 @@ export default function ReportsPage() {
           {pnlData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={pnlData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E8" />
-                <XAxis dataKey="month" stroke="#494949" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#494949" style={{ fontSize: '12px' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
+                <XAxis dataKey="month" stroke="#B0B0B0" style={{ fontSize: '12px' }} />
+                <YAxis stroke="#B0B0B0" style={{ fontSize: '12px' }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#FFF',
-                    border: '1px solid #E8E8E8',
+                    backgroundColor: '#141414',
+                    border: '1px solid #2A2A2A',
                     borderRadius: '8px',
                   }}
+                  labelStyle={{ color: '#ffffff', fontWeight: 600 }}
+                  itemStyle={{ color: '#e5e5e5' }}
+                  cursor={{ stroke: '#2A2A2A', strokeWidth: 1 }}
                   formatter={(value) => formatCurrency(value as number)}
                 />
                 <Legend />
@@ -278,15 +500,18 @@ export default function ReportsPage() {
           {monthlyComparison.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={monthlyComparison}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E8" />
-                <XAxis dataKey="month" stroke="#494949" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#494949" style={{ fontSize: '12px' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
+                <XAxis dataKey="month" stroke="#B0B0B0" style={{ fontSize: '12px' }} />
+                <YAxis stroke="#B0B0B0" style={{ fontSize: '12px' }} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#FFF',
-                    border: '1px solid #E8E8E8',
+                    backgroundColor: '#141414',
+                    border: '1px solid #2A2A2A',
                     borderRadius: '8px',
                   }}
+                  labelStyle={{ color: '#ffffff', fontWeight: 600 }}
+                  itemStyle={{ color: '#e5e5e5' }}
+                  cursor={{ stroke: '#2A2A2A', strokeWidth: 1 }}
                   formatter={(value) => formatCurrency(value as number)}
                 />
                 <Legend />
@@ -306,23 +531,92 @@ export default function ReportsPage() {
           {categoryBreakdown.length > 0 ? (
             <>
               <div className="flex justify-center items-center">
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
+                <ResponsiveContainer width="100%" height={340}>
+                  <PieChart margin={{ top: 40, right: 100, bottom: 40, left: 100 }}>
                     <Pie
                       data={categoryBreakdown}
                       cx="50%"
                       cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: ₹${(value / 100000).toFixed(1)}L`}
-                      outerRadius={80}
+                      // Bent L-shaped leader line — from slice edge → out
+                      // radially to an "elbow" → horizontal to the label.
+                      // Keeps labels far from the pie so they can breathe.
+                      labelLine={(props: any) => {
+                        const { cx, cy, midAngle, outerRadius, percent } = props;
+                        if (percent < 0.03) return null;
+                        const RADIAN = Math.PI / 180;
+                        const sin = Math.sin(-midAngle * RADIAN);
+                        const cos = Math.cos(-midAngle * RADIAN);
+                        const sx = cx + outerRadius * cos;         // start (slice edge)
+                        const sy = cy + outerRadius * sin;
+                        const mx = cx + (outerRadius + 16) * cos;  // elbow
+                        const my = cy + (outerRadius + 16) * sin;
+                        const ex = cx + (outerRadius + 42) * cos + (cos >= 0 ? 12 : -12);
+                        const ey = my;                             // horizontal segment
+                        return (
+                          <polyline
+                            points={`${sx},${sy} ${mx},${my} ${ex},${ey}`}
+                            stroke="#5a5a5a"
+                            strokeDasharray="2 3"
+                            strokeWidth={1}
+                            fill="none"
+                          />
+                        );
+                      }}
+                      // Label rendered at the end of the bent line.
+                      // Slices under 3% get no label (they'd overlap) — the
+                      // Category Details list beside the chart shows them all.
+                      label={({ name, value, percent, cx, cy, midAngle, outerRadius }: any) => {
+                        if (percent < 0.03) return null;
+                        const RADIAN = Math.PI / 180;
+                        const cos = Math.cos(-midAngle * RADIAN);
+                        const sin = Math.sin(-midAngle * RADIAN);
+                        // Same elbow math as labelLine — label sits just past it
+                        const ex = cx + (outerRadius + 42) * cos + (cos >= 0 ? 16 : -16);
+                        const ey = cy + (outerRadius + 16) * sin;
+                        const anchor = cos >= 0 ? 'start' : 'end';
+                        return (
+                          <text
+                            x={ex}
+                            y={ey}
+                            fill="#e5e5e5"
+                            textAnchor={anchor}
+                            dominantBaseline="central"
+                            fontSize={11}
+                            fontWeight={600}
+                          >
+                            <tspan x={ex} dy="-0.4em">{name}</tspan>
+                            <tspan x={ex} dy="1.1em" fill="#999" fontWeight={400}>
+                              {formatCurrency(value as number)} · {(percent * 100).toFixed(0)}%
+                            </tspan>
+                          </text>
+                        );
+                      }}
+                      // Donut style — modern & leaves room in the middle
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={2}
                       fill="#F37335"
                       dataKey="value"
                     >
                       {categoryBreakdown.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                          stroke="#141414"
+                          strokeWidth={2}
+                        />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#141414',
+                        border: '1px solid #2A2A2A',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: '#ffffff', fontWeight: 600 }}
+                      itemStyle={{ color: '#e5e5e5' }}
+                      formatter={(value) => formatCurrency(value as number)}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -394,7 +688,6 @@ export default function ReportsPage() {
                   <thead className="sticky top-0 bg-18-charcoal text-white uppercase text-xs">
                     <tr>
                       <th className="text-left px-3 py-2">Date</th>
-                      <th className="text-left px-3 py-2">Payee</th>
                       <th className="text-left px-3 py-2">Description</th>
                       <th className="text-right px-3 py-2">Amount</th>
                     </tr>
@@ -402,7 +695,7 @@ export default function ReportsPage() {
                   <tbody>
                     {txsInCat.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-3 py-8 text-center text-18-dark-text">
+                        <td colSpan={3} className="px-3 py-8 text-center text-18-dark-text">
                           No transactions in this category for the selected range.
                         </td>
                       </tr>
@@ -410,7 +703,6 @@ export default function ReportsPage() {
                       txsInCat.map((t) => (
                         <tr key={t.id} className="border-b border-18-border">
                           <td className="px-3 py-2 text-18-dark-text whitespace-nowrap">{formatDate(t.transaction_date)}</td>
-                          <td className="px-3 py-2">{t.payee_name || '—'}</td>
                           <td className="px-3 py-2 text-18-dark-text">{t.description || '—'}</td>
                           <td className="px-3 py-2 text-right font-semibold">{formatCurrency(t.amount)}</td>
                         </tr>

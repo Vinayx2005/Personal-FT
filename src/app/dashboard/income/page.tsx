@@ -19,7 +19,6 @@ interface IncomeForm {
   bank_id: number;
   category_id: number;
   transaction_date: string;
-  payee_name: string;
   notes: string;
 }
 
@@ -54,7 +53,6 @@ export default function IncomePage() {
     bank_id: 0,
     category_id: 0,
     transaction_date: new Date().toISOString().split('T')[0],
-    payee_name: '',
     notes: '',
   });
 
@@ -264,7 +262,6 @@ export default function IncomePage() {
           description: `Self transfer to ${toBank?.bank_name}`,
           amount,
           transaction_date,
-          payee_name: '',
           notes: commonNote,
           status: 'posted',
           transfer_group_id: transferGroupId,
@@ -278,7 +275,6 @@ export default function IncomePage() {
           description: `Self transfer from ${fromBank?.bank_name}`,
           amount,
           transaction_date,
-          payee_name: '',
           notes: commonNote,
           status: 'posted',
           transfer_group_id: transferGroupId,
@@ -390,7 +386,6 @@ export default function IncomePage() {
       bank_id: 0,
       category_id: 0,
       transaction_date: new Date().toISOString().split('T')[0],
-      payee_name: '',
       notes: '',
     });
     setEditingId(null);
@@ -414,8 +409,7 @@ export default function IncomePage() {
     if (categoryFilter.size > 0 && !categoryFilter.has(i.category_id)) return false;
     if (q) {
       const desc = (i.description || '').toLowerCase();
-      const payee = (i.payee_name || '').toLowerCase();
-      if (!desc.includes(q) && !payee.includes(q)) return false;
+      if (!desc.includes(q)) return false;
     }
     if (minA !== null && !isNaN(minA) && (i.amount || 0) < minA) return false;
     if (maxA !== null && !isNaN(maxA) && (i.amount || 0) > maxA) return false;
@@ -820,16 +814,6 @@ export default function IncomePage() {
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Payer Name</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={form.payee_name}
-                  onChange={(e) => setForm({ ...form, payee_name: e.target.value })}
-                />
-              </div>
-
               <div className="form-group md:col-span-2">
                 <label className="form-label">Notes</label>
                 <textarea
@@ -884,8 +868,8 @@ export default function IncomePage() {
                       <th className="w-8"></th>
                       <th>Date</th>
                       <th>Category</th>
-                      <th>Payer</th>
                       <th>Description</th>
+                      <th>Bank</th>
                       <th className="text-right">Amount</th>
                       <th className="text-center">Actions</th>
                     </tr>
@@ -893,9 +877,10 @@ export default function IncomePage() {
                   <tbody>
                     {g.items.map((inc) => {
                       const category = categories.find((c) => c.id === inc.category_id);
+                      const bank = banks.find((b) => b.id === inc.bank_id);
                       const checked = selectedIds.has(inc.id);
                       return (
-                        <tr key={inc.id} id={`row-tx-${inc.id}`} className={checked ? 'bg-red-50' : ''}>
+                        <tr key={inc.id} id={`row-tx-${inc.id}`} className={checked ? 'bg-red-500/10' : ''}>
                           <td>
                             <input
                               type="checkbox"
@@ -913,8 +898,10 @@ export default function IncomePage() {
                       <td>
                         <span className="badge badge-orange">{category?.name}</span>
                       </td>
-                      <td>{inc.payee_name}</td>
                       <td>{inc.description}</td>
+                      <td className="whitespace-nowrap text-white/80">
+                        {bank?.bank_name || <span className="text-18-dark-text italic">—</span>}
+                      </td>
                       <td className="text-right font-bold">{formatCurrency(inc.amount)}</td>
                       <td className="text-center">
                         <div className="flex gap-2 justify-center">
@@ -926,7 +913,6 @@ export default function IncomePage() {
                                 bank_id: inc.bank_id,
                                 category_id: inc.category_id,
                                 transaction_date: inc.transaction_date,
-                                payee_name: inc.payee_name || '',
                                 notes: inc.notes || '',
                               });
                               setEditingId(inc.id);

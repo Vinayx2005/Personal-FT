@@ -9,9 +9,6 @@ export interface User {
 export interface Bank {
   id: number;
   bank_name: string;
-  account_number: string;
-  account_holder: string;
-  ifsc_code: string;
   opening_balance: number;
   is_active: boolean;
   created_at: string;
@@ -70,7 +67,6 @@ export interface Transaction {
   description: string;
   amount: number;
   transaction_date: string;
-  payee_name: string;
   transfer_group_id: string | null;
   status: 'posted' | 'draft' | 'reconciled';
   notes: string;
