@@ -373,7 +373,6 @@ export default function ReportsPage() {
     });
 
     // ------- FOOTER on every page -------
-    // @ts-expect-error jsPDF's pages count is offset by 1 (index 0 unused)
     const pageCount = doc.internal.pages.length - 1;
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
