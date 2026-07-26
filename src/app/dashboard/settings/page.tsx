@@ -137,7 +137,7 @@ export default function SettingsPage() {
       } else {
         const { data, error } = await supabase
           .from('banks')
-          .insert({ ...bankForm, is_active: true })
+          .insert({ ...bankForm, is_active: true, user_id: currentUser?.id })
           .select()
           .single();
         if (error) throw error;
@@ -209,7 +209,7 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase
         .from('categories')
-        .insert({ type, name, is_default: false, created_by: currentUser?.id })
+        .insert({ type, name, is_default: false, user_id: currentUser?.id })
         .select()
         .single();
       if (error) throw error;
@@ -285,12 +285,12 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-18-charcoal mb-8">Settings</h1>
+      <h1 className="text-2xl font-bold text-white mb-8">Settings</h1>
 
       {/* Banks Section */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-18-charcoal">Banks</h2>
+          <h2 className="text-2xl font-bold text-white">Banks</h2>
           <button
             onClick={() => {
               if (showBankForm) {
@@ -309,7 +309,7 @@ export default function SettingsPage() {
         </div>
 
         {showBankForm && (
-          <div className="card bg-18-yellow mb-6">
+          <div className="card bg-18-surface border-18-border mb-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">
                 {editingBankId ? 'Edit Bank' : 'Add New Bank'}
@@ -319,7 +319,7 @@ export default function SettingsPage() {
                   setShowBankForm(false);
                   resetBankForm();
                 }}
-                className="text-18-charcoal hover:text-18-orange"
+                className="text-white hover:text-18-orange"
               >
                 <X size={24} />
               </button>
@@ -421,7 +421,7 @@ export default function SettingsPage() {
                 <div key={bank.id} className="pb-4 border-b border-18-border last:border-b-0">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-bold text-18-charcoal">{bank.bank_name}</p>
+                      <p className="font-bold text-white">{bank.bank_name}</p>
                       <p className="text-sm text-18-dark-text">{bank.account_number}</p>
                       {bank.account_holder && (
                         <p className="text-xs text-18-dark-text">{bank.account_holder}</p>
@@ -430,7 +430,7 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="text-xs text-18-dark-text uppercase font-semibold">Opening</p>
-                        <p className="font-bold text-18-charcoal">
+                        <p className="font-bold text-white">
                           {formatCurrency(bank.opening_balance || 0)}
                         </p>
                       </div>
@@ -452,7 +452,7 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={() => handleDeleteBank(bank.id)}
-                        className="text-red-600 hover:text-red-800"
+                        className="text-red-400 hover:text-red-300"
                         title="Delete bank"
                       >
                         <Trash2 size={16} />
@@ -476,7 +476,7 @@ export default function SettingsPage() {
                               <span className="text-18-dark-text">{formatDate(h.created_at)} — </span>
                               {h.previous_balance !== null ? (
                                 <>
-                                  <span className="text-red-600 line-through">
+                                  <span className="text-red-400 line-through">
                                     {formatCurrency(h.previous_balance)}
                                   </span>
                                   <span className="mx-2 text-18-dark-text">→</span>
@@ -484,7 +484,7 @@ export default function SettingsPage() {
                               ) : (
                                 <span className="mr-1 text-18-dark-text italic">initial</span>
                               )}
-                              <span className="font-semibold text-18-charcoal">
+                              <span className="font-semibold text-white">
                                 {formatCurrency(h.new_balance)}
                               </span>
                               {h.reason && (
@@ -526,7 +526,7 @@ export default function SettingsPage() {
           ]
         ).map(({ type, title, items, value, setValue }) => (
           <div key={type} className="card">
-            <h2 className="text-xl font-bold text-18-charcoal mb-4">{title}</h2>
+            <h2 className="text-xl font-bold text-white mb-4">{title}</h2>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -550,7 +550,7 @@ export default function SettingsPage() {
               <ul className="divide-y divide-18-border">
                 {items.map((c) => (
                   <li key={c.id} className="flex items-center justify-between py-2">
-                    <span className="text-18-charcoal">
+                    <span className="text-white">
                       {c.name}
                       {c.is_default && (
                         <span className="ml-2 text-xs text-18-dark-text uppercase tracking-wide">
@@ -560,7 +560,7 @@ export default function SettingsPage() {
                     </span>
                     <button
                       onClick={() => handleDeleteCategory(c.id, type)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-400 hover:text-red-300"
                       title="Delete category"
                     >
                       <Trash2 size={16} />

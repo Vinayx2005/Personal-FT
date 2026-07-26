@@ -28,6 +28,7 @@ interface ExpenseForm {
 
 export default function ExpensesPage() {
   const router = useRouter();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -60,6 +61,9 @@ export default function ExpensesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        setCurrentUserId(authUser?.id ?? null);
+
         // Fetch expenses
         const { data: expensesData } = await supabase
           .from('transactions')
@@ -137,6 +141,7 @@ export default function ExpensesPage() {
             ...payload,
             created_at: new Date().toISOString(),
             status: 'posted',
+            created_by: currentUserId,
           })
           .select();
 
@@ -261,7 +266,7 @@ export default function ExpensesPage() {
       if (toCreate.length > 0) {
         const { data: created, error: createErr } = await supabase
           .from('categories')
-          .insert(toCreate.map((name) => ({ type: 'expense', name, is_default: false })))
+          .insert(toCreate.map((name) => ({ type: 'expense', name, is_default: false, user_id: currentUserId })))
           .select();
         if (createErr) {
           alert(`Failed to auto-create categories: ${createErr.message}`);
@@ -290,7 +295,7 @@ export default function ExpensesPage() {
       const nowIso = new Date().toISOString();
       const { data, error } = await supabase
         .from('transactions')
-        .insert(rows.map((r) => ({ ...r, created_at: nowIso })))
+        .insert(rows.map((r) => ({ ...r, created_at: nowIso, created_by: currentUserId })))
         .select();
 
       if (error) throw error;
@@ -448,7 +453,7 @@ export default function ExpensesPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-18-charcoal">Expenses</h1>
+        <h1 className="text-2xl font-bold text-white">Expenses</h1>
         <div className="flex flex-wrap items-center gap-2">
           <DateRangePicker value={range} onChange={setRange} />
           <button
@@ -496,7 +501,7 @@ export default function ExpensesPage() {
         <div className="mb-4 card !p-3 flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <div className="flex items-center justify-between mb-1 text-sm">
-              <span className="font-semibold text-18-charcoal">
+              <span className="font-semibold text-white">
                 Fetching receipts from Google Drive
               </span>
               <span className="text-18-dark-text">
@@ -513,8 +518,8 @@ export default function ExpensesPage() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-green-700 font-semibold">✓ {receiptProgress.ok}</span>
-            <span className="text-red-600 font-semibold">✗ {receiptProgress.fail}</span>
+            <span className="text-green-300 font-semibold">✓ {receiptProgress.ok}</span>
+            <span className="text-red-400 font-semibold">✗ {receiptProgress.fail}</span>
           </div>
         </div>
       )}
@@ -545,7 +550,7 @@ export default function ExpensesPage() {
           />
         </div>
         <details className="mt-1">
-          <summary className="cursor-pointer text-xs font-semibold text-18-charcoal flex items-center justify-between">
+          <summary className="cursor-pointer text-xs font-semibold text-white flex items-center justify-between">
             <span>
               Filter by category
               {categoryFilter.size > 0 && (
@@ -576,7 +581,7 @@ export default function ExpensesPage() {
                 <label
                   key={c.id}
                   className={`flex items-center gap-2 p-2 rounded text-xs cursor-pointer border ${
-                    checked ? 'bg-orange-50 border-18-orange' : 'bg-white border-18-border hover:border-18-dark-text'
+                    checked ? 'bg-18-orange/10 border-18-orange' : 'bg-18-surface border-18-border hover:border-18-dark-text'
                   }`}
                 >
                   <input
@@ -600,13 +605,13 @@ export default function ExpensesPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="card bg-red-50 border-red-200">
-          <p className="text-red-700 text-sm font-bold uppercase mb-2">Total Expenses</p>
-          <h3 className="text-xl font-bold text-red-700">{formatCurrency(totalExpenses)}</h3>
+        <div className="card bg-red-900/20 border-red-800/40">
+          <p className="text-red-300 text-sm font-bold uppercase mb-2">Total Expenses</p>
+          <h3 className="text-xl font-bold text-red-300">{formatCurrency(totalExpenses)}</h3>
         </div>
-        <div className="card bg-18-yellow border-18-yellow">
-          <p className="text-18-charcoal text-sm font-bold uppercase mb-2">Transactions</p>
-          <h3 className="text-xl font-bold text-18-charcoal">{realTxCount}</h3>
+        <div className="card bg-18-orange/15 border-18-orange/40">
+          <p className="text-white text-sm font-bold uppercase mb-2">Transactions</p>
+          <h3 className="text-xl font-bold text-white">{realTxCount}</h3>
           {inRange.length !== realTxCount && (
             <p className="text-xs text-18-dark-text mt-1">
               +{inRange.length - realTxCount} self-transfer{inRange.length - realTxCount > 1 ? 's' : ''} excluded
@@ -618,9 +623,9 @@ export default function ExpensesPage() {
       {/* Form (modal) */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}>
-          <div className="card bg-18-yellow w-full max-w-3xl my-8 shadow-2xl">
+          <div className="card bg-18-surface border-18-border w-full max-w-3xl my-8 shadow-2xl">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-18-charcoal">
+            <h2 className="text-2xl font-bold text-white">
               {editingId ? 'Edit Expense' : 'New Expense'}
             </h2>
             <button
@@ -628,7 +633,7 @@ export default function ExpensesPage() {
                 setShowForm(false);
                 resetForm();
               }}
-              className="text-18-charcoal hover:text-18-orange"
+              className="text-white hover:text-18-orange"
             >
               <X size={24} />
             </button>
@@ -748,7 +753,7 @@ export default function ExpensesPage() {
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, receipt_url: null })}
-                        className="text-sm text-red-600 hover:underline"
+                        className="text-sm text-red-400 hover:underline"
                       >
                         Remove
                       </button>
@@ -792,8 +797,8 @@ export default function ExpensesPage() {
 
       {/* Bulk delete bar */}
       {selectedIds.size > 0 && (
-        <div className="card bg-red-50 border-red-200 mb-4 flex items-center justify-between py-3">
-          <p className="text-sm text-red-700 font-semibold">
+        <div className="card bg-red-900/20 border-red-800/40 mb-4 flex items-center justify-between py-3">
+          <p className="text-sm text-red-300 font-semibold">
             {selectedIds.size} selected
           </p>
           <div className="flex gap-2">
@@ -819,10 +824,10 @@ export default function ExpensesPage() {
           return (
             <div key={g.key} className="card mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-bold text-18-charcoal">{g.label}</h3>
+                <h3 className="text-lg font-bold text-white">{g.label}</h3>
                 <div className="text-sm">
                   <span className="text-18-dark-text">{g.items.length} entries · </span>
-                  <span className="font-bold text-18-charcoal">{formatCurrency(monthTotal)}</span>
+                  <span className="font-bold text-white">{formatCurrency(monthTotal)}</span>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -857,7 +862,7 @@ export default function ExpensesPage() {
                               }}
                             />
                           </td>
-                      <td>{formatDate(expense.transaction_date)}</td>
+                      <td className="whitespace-nowrap">{formatDate(expense.transaction_date)}</td>
                       <td>
                         <span className="badge badge-orange">{category?.name}</span>
                       </td>
@@ -908,13 +913,13 @@ export default function ExpensesPage() {
                               setEditingId(expense.id);
                               setShowForm(true);
                             }}
-                            className="text-18-orange hover:text-18-charcoal transition-colors"
+                            className="text-18-orange hover:text-white transition-colors"
                           >
                             <Edit2 size={18} />
                           </button>
                           <button
                             onClick={() => handleDelete(expense.id)}
-                            className="text-red-600 hover:text-red-800 transition-colors"
+                            className="text-red-400 hover:text-red-300 transition-colors"
                           >
                             <Trash2 size={18} />
                           </button>
@@ -943,19 +948,19 @@ export default function ExpensesPage() {
               if (e.target === e.currentTarget) setViewing(null);
             }}
           >
-            <div className="card bg-white w-full max-w-2xl my-8 shadow-2xl">
+            <div className="card bg-18-surface w-full max-w-2xl my-8 shadow-2xl">
               <div className="flex justify-between items-start mb-4 gap-3">
                 <div>
                   <p className="text-xs uppercase font-bold text-18-dark-text">
                     Expense · {formatDate(exp.transaction_date)}
                   </p>
-                  <h2 className="text-xl font-bold text-18-charcoal mt-1">
+                  <h2 className="text-xl font-bold text-white mt-1">
                     {exp.description || exp.payee_name || 'Untitled expense'}
                   </h2>
                 </div>
                 <button
                   onClick={() => setViewing(null)}
-                  className="text-18-charcoal hover:text-18-orange shrink-0"
+                  className="text-white hover:text-18-orange shrink-0"
                 >
                   <X size={22} />
                 </button>
@@ -964,7 +969,7 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
                 <div>
                   <p className="text-xs uppercase font-bold text-18-dark-text mb-1">Amount</p>
-                  <p className="text-lg font-bold text-18-charcoal">
+                  <p className="text-lg font-bold text-white">
                     {formatCurrency(exp.amount)}
                   </p>
                 </div>

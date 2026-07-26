@@ -79,14 +79,14 @@ export default function ReceiptPreview({ path }: { path: string }) {
   return (
     <Link
       href={href}
-      className="block w-full max-w-xs rounded border border-18-border hover:border-18-orange overflow-hidden bg-white transition-colors"
+      className="block w-full max-w-xs rounded border border-18-border hover:border-18-orange overflow-hidden bg-18-surface transition-colors"
       title="Click to view full-size"
     >
       <div className="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
         {state === 'loading' ? (
           <Loader2 size={22} className="animate-spin text-18-dark-text" />
         ) : state === 'error' ? (
-          <div className="text-xs text-red-600 p-3 text-center">
+          <div className="text-xs text-red-400 p-3 text-center">
             Preview unavailable — click to open
           </div>
         ) : thumbUrl ? (
@@ -100,7 +100,7 @@ export default function ReceiptPreview({ path }: { path: string }) {
         )}
       </div>
       <div className="p-2 border-t border-18-border">
-        <p className="text-xs text-18-charcoal font-semibold truncate">{filename}</p>
+        <p className="text-xs text-white font-semibold truncate">{filename}</p>
         <p className="text-[10px] text-18-dark-text uppercase">Click to view · download available</p>
       </div>
     </Link>

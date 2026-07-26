@@ -62,7 +62,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-18-sm border-2 border-18-border bg-white text-sm text-18-charcoal hover:border-18-orange transition-colors"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-18-sm border-2 border-18-border bg-18-surface text-sm text-white hover:border-18-orange transition-colors"
       >
         <Calendar size={16} />
         <span className="font-semibold">{label}</span>
@@ -81,7 +81,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
                 className={`text-left text-sm px-2 py-1 rounded ${
                   preset === p
                     ? 'bg-18-orange text-white font-semibold'
-                    : 'text-18-charcoal hover:bg-18-bg'
+                    : 'text-white hover:bg-18-surface-2'
                 }`}
               >
                 {PRESET_LABELS[p]}

@@ -34,7 +34,7 @@ export default function CategorySelect({
     try {
       const { data, error } = await supabase
         .from('categories')
-        .insert({ type, name, is_default: false, created_by: currentUserId ?? null })
+        .insert({ type, name, is_default: false, user_id: currentUserId })
         .select()
         .single();
       if (error) throw error;

@@ -140,7 +140,7 @@ export default function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-18-sm border border-18-border bg-white hover:border-18-orange transition-colors text-sm text-18-dark-text"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-18-sm border border-18-border bg-18-surface hover:border-18-orange transition-colors text-sm text-18-dark-text"
         title="Search (Ctrl+K)"
       >
         <Search size={14} />
@@ -156,7 +156,7 @@ export default function GlobalSearch() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-white rounded-18-md shadow-xl w-full max-w-2xl mx-4 max-h-[70vh] flex flex-col"
+            className="bg-18-surface rounded-18-md shadow-xl w-full max-w-2xl mx-4 max-h-[70vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 p-3 border-b border-18-border">
@@ -171,7 +171,7 @@ export default function GlobalSearch() {
               />
               <button
                 onClick={() => setOpen(false)}
-                className="text-18-dark-text hover:text-18-charcoal"
+                className="text-18-dark-text hover:text-white"
                 title="Close (Esc)"
               >
                 <X size={18} />
@@ -196,10 +196,10 @@ export default function GlobalSearch() {
                       <Link
                         href={r.href}
                         onClick={() => setOpen(false)}
-                        className="flex items-start justify-between gap-3 px-4 py-2 hover:bg-18-bg"
+                        className="flex items-start justify-between gap-3 px-4 py-2 hover:bg-18-surface-2"
                       >
                         <div>
-                          <p className="text-sm text-18-charcoal font-semibold">{r.label}</p>
+                          <p className="text-sm text-white font-semibold">{r.label}</p>
                           <p className="text-xs text-18-dark-text">{r.sub}</p>
                         </div>
                         <span className="text-xs text-18-orange font-semibold whitespace-nowrap">

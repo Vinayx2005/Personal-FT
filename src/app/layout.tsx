@@ -2,8 +2,8 @@ import { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata = {
-  title: "Teja's Finance Tracker",
-  description: 'Personal finance tracker',
+  title: 'Personal FT — Know where your money goes',
+  description: 'A finance tracker that finds your leaks and helps you feel calm about money.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-        <title>Teja&apos;s Finance Tracker</title>
+        <title>Personal FT</title>
       </head>
       <body className="font-lato bg-18-bg">{children}</body>
     </html>

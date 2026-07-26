@@ -146,7 +146,7 @@ export default function ReceiptViewerPage() {
           </div>
         )}
         {state === 'error' && (
-          <div className="flex flex-col items-center justify-center h-full p-12 text-red-600">
+          <div className="flex flex-col items-center justify-center h-full p-12 text-red-400">
             <FileX size={40} className="mb-2" />
             <p className="font-semibold">Could not load this receipt</p>
             <p className="text-sm text-18-dark-text mt-1">{error}</p>
@@ -165,7 +165,7 @@ export default function ReceiptViewerPage() {
               // new tab where the browser's normal PDF viewer handles it.
               <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                 <FileText size={64} className="text-18-orange mb-4" />
-                <p className="text-lg font-semibold text-18-charcoal mb-1">
+                <p className="text-lg font-semibold text-white mb-1">
                   {filename}
                 </p>
                 <p className="text-sm text-18-dark-text mb-6">
@@ -195,7 +195,7 @@ export default function ReceiptViewerPage() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full p-12">
-                <p className="text-18-charcoal font-semibold mb-2">Preview not supported</p>
+                <p className="text-white font-semibold mb-2">Preview not supported</p>
                 <p className="text-sm text-18-dark-text mb-4">
                   Detected type: <code>{contentType}</code>
                 </p>

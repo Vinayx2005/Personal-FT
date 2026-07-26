@@ -189,7 +189,7 @@ export default function ReportsPage() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-18-charcoal">Reports & Analytics</h1>
+        <h1 className="text-2xl font-bold text-white">Reports & Analytics</h1>
         <div className="flex flex-wrap gap-2">
           <button onClick={exportPDF} className="btn btn-outline flex items-center gap-2">
             <Download size={18} />
@@ -208,28 +208,28 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card bg-green-50 border-green-200">
-          <p className="text-green-700 text-sm font-bold uppercase mb-2">Total Revenue</p>
-          <h3 className="text-xl font-bold text-green-700">{formatCurrency(totalRevenue)}</h3>
-          <p className="text-xs text-green-600 mt-2">{pnlData.length} months</p>
+        <div className="card bg-green-900/20 border-green-800/40">
+          <p className="text-green-300 text-sm font-bold uppercase mb-2">Total Revenue</p>
+          <h3 className="text-xl font-bold text-green-300">{formatCurrency(totalRevenue)}</h3>
+          <p className="text-xs text-green-400 mt-2">{pnlData.length} months</p>
         </div>
-        <div className="card bg-red-50 border-red-200">
-          <p className="text-red-700 text-sm font-bold uppercase mb-2">Total Expenses</p>
-          <h3 className="text-xl font-bold text-red-700">{formatCurrency(totalExpenses)}</h3>
-          <p className="text-xs text-red-600 mt-2">Across all categories</p>
+        <div className="card bg-red-900/20 border-red-800/40">
+          <p className="text-red-300 text-sm font-bold uppercase mb-2">Total Expenses</p>
+          <h3 className="text-xl font-bold text-red-300">{formatCurrency(totalExpenses)}</h3>
+          <p className="text-xs text-red-400 mt-2">Across all categories</p>
         </div>
-        <div className="card !bg-18-yellow !border-18-yellow">
-          <p className="text-sm font-bold uppercase mb-2 text-18-charcoal">Net</p>
-          <h3 className={`text-xl font-bold ${totalProfit >= 0 ? 'text-18-charcoal' : 'text-red-700'}`}>
+        <div className="card !bg-18-orange/15 !border-18-orange/40">
+          <p className="text-sm font-bold uppercase mb-2 text-white">Net</p>
+          <h3 className={`text-xl font-bold ${totalProfit >= 0 ? 'text-white' : 'text-red-300'}`}>
             {formatCurrency(totalProfit)}
           </h3>
-          <p className="text-xs mt-2 text-18-charcoal/70">Income − Expenses</p>
+          <p className="text-xs mt-2 text-white/70">Income − Expenses</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="card">
-          <h2 className="text-xl font-bold text-18-charcoal mb-4">Monthly PnL Trend</h2>
+          <h2 className="text-xl font-bold text-white mb-4">Monthly PnL Trend</h2>
           {pnlData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={pnlData}>
@@ -274,7 +274,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-bold text-18-charcoal mb-4">Monthly Comparison</h2>
+          <h2 className="text-xl font-bold text-white mb-4">Monthly Comparison</h2>
           {monthlyComparison.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={monthlyComparison}>
@@ -301,7 +301,7 @@ export default function ReportsPage() {
       </div>
 
       <div className="card">
-        <h2 className="text-xl font-bold text-18-charcoal mb-6">Expense Breakdown by Category</h2>
+        <h2 className="text-xl font-bold text-white mb-6">Expense Breakdown by Category</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {categoryBreakdown.length > 0 ? (
             <>
@@ -328,13 +328,13 @@ export default function ReportsPage() {
               </div>
 
               <div>
-                <h3 className="font-bold text-18-charcoal mb-4">Category Details</h3>
+                <h3 className="font-bold text-white mb-4">Category Details</h3>
                 <div className="space-y-3">
                   {categoryBreakdown.map((cat, idx) => (
                     <button
                       key={idx}
                       onClick={() => setDrillCategory(cat.name)}
-                      className="w-full flex justify-between items-center pb-3 border-b border-18-border text-left hover:bg-orange-50 rounded-md p-2 -m-2 transition-colors"
+                      className="w-full flex justify-between items-center pb-3 border-b border-18-border text-left hover:bg-18-orange/10 rounded-md p-2 -m-2 transition-colors"
                       title="View transactions in this category"
                     >
                       <div className="flex items-center gap-3">
@@ -342,10 +342,10 @@ export default function ReportsPage() {
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                         ></div>
-                        <span className="font-semibold text-18-charcoal">{cat.name}</span>
+                        <span className="font-semibold text-white">{cat.name}</span>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-18-charcoal">{formatCurrency(cat.value)}</p>
+                        <p className="font-bold text-white">{formatCurrency(cat.value)}</p>
                         <p className="text-xs text-18-dark-text">
                           {((cat.value / totalExpenses) * 100).toFixed(1)}%
                         </p>
@@ -373,10 +373,10 @@ export default function ReportsPage() {
             className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4"
             onClick={(e) => { if (e.target === e.currentTarget) setDrillCategory(null); }}
           >
-            <div className="card bg-white w-full max-w-3xl my-8 shadow-2xl">
+            <div className="card bg-18-surface w-full max-w-3xl my-8 shadow-2xl">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-18-charcoal">{drillCategory}</h3>
+                  <h3 className="text-xl font-bold text-white">{drillCategory}</h3>
                   <p className="text-sm text-18-dark-text">
                     {txsInCat.length} transaction{txsInCat.length !== 1 ? 's' : ''} · {formatCurrency(total)}
                     {' · '}{range.from} → {range.to}
@@ -384,7 +384,7 @@ export default function ReportsPage() {
                 </div>
                 <button
                   onClick={() => setDrillCategory(null)}
-                  className="text-18-charcoal hover:text-18-orange"
+                  className="text-white hover:text-18-orange"
                 >
                   <X size={22} />
                 </button>

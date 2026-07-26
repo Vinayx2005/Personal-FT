@@ -8,14 +8,30 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        '18-orange': '#F37335',
-        '18-yellow': '#FFF392',
-        '18-charcoal': '#1A1A1A',
-        '18-dark-text': '#494949',
-        '18-black': '#141414',
-        '18-white': '#FFFFFF',
-        '18-bg': '#FAFAFA',
-        '18-border': '#E8E8E8',
+        // Brand
+        '18-orange':    '#F37335',
+        '18-yellow':    '#FFF392',
+        // Semantic — flipped for dark theme.
+        // Rule of thumb: bg-* = surfaces/backgrounds, text-* = text.
+        '18-bg':        '#0A0A0A', // page background (near-black)
+        '18-surface':   '#141414', // card / elevated surface
+        '18-surface-2': '#1C1C1C', // slightly higher elevation
+        '18-charcoal':  '#141414', // legacy alias — still dark, used as sidebar bg
+        '18-black':     '#000000',
+        '18-white':     '#FFFFFF', // primary text on dark
+        '18-dark-text': '#B0B0B0', // muted text on dark
+        '18-border':    '#2A2A2A', // subtle border on dark
+        // Legacy — kept so nothing crashes
+        'dark-text':    '#B0B0B0',
+        orange:         '#F37335',
+        'orange-600':   '#E5601F',
+      },
+      backgroundImage: {
+        // Warm orange radial glows for hero sections (matches the reference look)
+        'glow-hero':
+          'radial-gradient(1200px 500px at 20% -10%, rgba(243,115,53,0.35) 0%, transparent 60%), radial-gradient(1000px 400px at 85% 5%, rgba(255,180,80,0.25) 0%, transparent 55%)',
+        'glow-soft':
+          'radial-gradient(700px 300px at 50% -20%, rgba(243,115,53,0.20) 0%, transparent 65%)',
       },
       fontFamily: {
         lato: ['Lato', 'sans-serif'],

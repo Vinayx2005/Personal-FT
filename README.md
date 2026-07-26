@@ -1,55 +1,46 @@
-# Teja's Finance Tracker (Personal FT)
+# Personal FT
 
-A personal finance tracker for daily expenses and income. Built on Next.js 14 (App Router) + Supabase.
+**Know where your money goes. Feel calm about it.**
+
+A finance tracker for young professionals who want to see their spending leaks without linking a bank account. Multi-user SaaS built on Next.js 14 (App Router) + Supabase.
 
 ## Features
 
+- **Quick Add** — 4-line format, log an expense in <10 seconds. Installable as a PWA on your phone.
 - Dashboard with income, expenses, net, and per-bank balances
-- Expenses & Income modules with CSV import and receipt attachments
-- Reports: monthly PnL trend, category breakdown, Excel/PDF export
-- Settings: manage banks, categories, fixed deposits, users
+- Expenses & Income with CSV import and receipt attachments
+- Investments tracker (FD / Smallcase / Stocks / Mutual Fund / Others)
+- Reports: monthly PnL trend + category breakdown + Excel/PDF export
+- Settings: manage banks, categories
 - Activity log for every add/edit/delete/import/export
+- Multi-user with strict per-user data isolation via Postgres RLS
+- Auto-seeded default categories on signup
 
 ## Prerequisites
 
 - Node.js 18+
-- A Supabase project (free tier works)
+- A Supabase project (free tier)
 
 ## Setup
 
-### 1. Install dependencies
+### 1. Install
 
 ```
 npm install
 ```
 
-### 2. Set up Supabase
+### 2. Supabase
 
-1. Create a new project at [supabase.com](https://supabase.com).
-2. Open **SQL Editor** and:
-   - **Fresh project?** Run `supabase_schema.sql`.
-   - **Previously ran the old company schema?** Run `migrations/personal_cleanup.sql` first, then `supabase_schema.sql` (the personal schema is idempotent — it will only add what's missing).
-3. Create a Storage bucket called `receipts` (private). Add a policy that allows all operations to `authenticated` users on `bucket_id = 'receipts'`.
-4. **Authentication → Users → Add user** — create your own account. Copy the new user's UUID.
-5. In SQL Editor, insert yourself into the app's `users` table and grant admin:
+1. Create a new Supabase project.
+2. **SQL Editor** → run `supabase_schema.sql` (fresh install).
+   *If you're upgrading from an older solo-user version, run the files in `migrations/` in numeric order first.*
+3. **Storage → New bucket** → name `receipts`, uncheck "Public bucket".
+   Add a Storage policy: allowed operations SELECT/INSERT/UPDATE/DELETE, target roles `authenticated`, definition `bucket_id = 'receipts'`.
+4. **Authentication → Email templates** → confirm your sender email is set.
 
-   ```sql
-   INSERT INTO users (id, email, full_name, role_id)
-   VALUES (
-     '<paste-auth-user-uuid-here>',
-     'you@example.com',
-     'Your Name',
-     (SELECT id FROM roles WHERE name = 'admin')
-   );
-   ```
+### 3. Environment
 
-### 3. Configure environment variables
-
-Copy `.env.example` to `.env.local` and fill in:
-
-- `NEXT_PUBLIC_SUPABASE_URL` — Supabase Settings → API → Project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Settings → API → anon public key
-- `SUPABASE_SERVICE_ROLE_KEY` — Settings → API → service_role key (keep secret, never commit)
+Copy `.env.example` to `.env.local` and fill in the Supabase values from Settings → API.
 
 ### 4. Run
 
@@ -57,14 +48,14 @@ Copy `.env.example` to `.env.local` and fill in:
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in with the account you created.
+Open [http://localhost:3000](http://localhost:3000) → click **Create an account**.
 
-## Adding a bank
+## For end users
 
-Once signed in: **Settings → Banks → Add Bank**. Add at least one bank before you start recording transactions.
+Sign up on the landing page → verify your email → land on the dashboard → add a bank in Settings → start logging expenses via `/quick` or the Expenses tab.
 
 ## Notes
 
 - `.env.local` is gitignored — safe to keep secrets there.
-- The `18-*` Tailwind color prefix (e.g. `bg-18-orange`) is legacy naming from the original codebase; it's just class names, not visible branding.
-- Only one user is expected (you). The `users` / `roles` / `module_access` tables exist because the RLS policies use them — leaving them alone is fine.
+- The `18-*` Tailwind color prefix is legacy naming; harmless (just class names).
+- Every table has per-user Row Level Security — users cannot see each other's data.

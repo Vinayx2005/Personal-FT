@@ -165,7 +165,7 @@ export default function InvestmentsPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-18-charcoal mb-2">Investments</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">Investments</h1>
           <p className="text-18-dark-text">Track FDs, Smallcases, Stocks, Mutual Funds and more</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
@@ -176,25 +176,25 @@ export default function InvestmentsPage() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <div className="card !bg-18-yellow !border-18-yellow">
-          <p className="text-xs font-bold uppercase text-18-charcoal">Total</p>
-          <h3 className="text-lg font-bold text-18-charcoal">{formatCurrency(total)}</h3>
-          <p className="text-xs text-18-charcoal/70 mt-1">{investments.length} item{investments.length !== 1 ? 's' : ''}</p>
+        <div className="card !bg-18-orange/15 !border-18-orange/40">
+          <p className="text-xs font-bold uppercase text-white">Total</p>
+          <h3 className="text-lg font-bold text-white">{formatCurrency(total)}</h3>
+          <p className="text-xs text-white/70 mt-1">{investments.length} item{investments.length !== 1 ? 's' : ''}</p>
         </div>
         {byType.map((b) => (
           <div key={b.type} className="card">
             <p className="text-xs font-bold uppercase text-18-dark-text">{b.label}</p>
-            <h3 className="text-lg font-bold text-18-charcoal">{formatCurrency(b.total)}</h3>
+            <h3 className="text-lg font-bold text-white">{formatCurrency(b.total)}</h3>
             <p className="text-xs text-18-dark-text mt-1">{b.count} item{b.count !== 1 ? 's' : ''}</p>
           </div>
         ))}
       </div>
 
       {showForm && (
-        <div className="card bg-18-yellow mb-6">
+        <div className="card bg-18-surface border-18-border mb-6">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold">New Investment</h3>
-            <button onClick={() => setShowForm(false)} className="text-18-charcoal hover:text-18-orange">
+            <button onClick={() => setShowForm(false)} className="text-white hover:text-18-orange">
               <X size={20} />
             </button>
           </div>
@@ -301,7 +301,7 @@ export default function InvestmentsPage() {
                     checked={form.deduct_from_bank}
                     onChange={(e) => setForm({ ...form, deduct_from_bank: e.target.checked })}
                   />
-                  <label htmlFor="deduct_from_bank" className="text-sm text-18-charcoal">
+                  <label htmlFor="deduct_from_bank" className="text-sm text-white">
                     Also deduct {formatCurrency(form.amount || 0)} from selected bank&apos;s opening balance
                   </label>
                 </div>
@@ -349,7 +349,7 @@ export default function InvestmentsPage() {
                       <td className="text-center">
                         <button
                           onClick={() => handleDelete(inv.id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-400 hover:text-red-300"
                           title="Delete investment"
                         >
                           <Trash2 size={16} />
@@ -359,7 +359,7 @@ export default function InvestmentsPage() {
                   );
                 })}
                 <tr>
-                  <td colSpan={6} className="text-right font-bold text-18-charcoal">Total value</td>
+                  <td colSpan={6} className="text-right font-bold text-white">Total value</td>
                   <td className="text-right font-bold text-18-orange">{formatCurrency(total)}</td>
                   <td></td>
                 </tr>

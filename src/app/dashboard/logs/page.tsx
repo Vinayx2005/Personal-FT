@@ -17,14 +17,14 @@ import {
 } from 'lucide-react';
 
 const ACTION_COLORS: Record<string, string> = {
-  create: 'text-green-700 bg-green-50',
-  update: 'text-blue-700 bg-blue-50',
-  delete: 'text-red-700 bg-red-50',
-  import: 'text-purple-700 bg-purple-50',
-  export: 'text-18-charcoal bg-18-yellow',
-  deactivate: 'text-red-700 bg-red-50',
-  reactivate: 'text-green-700 bg-green-50',
-  mark_paid: 'text-green-700 bg-green-50',
+  create:     'text-green-300 bg-green-900/40 border border-green-800/50',
+  update:     'text-blue-300  bg-blue-900/40  border border-blue-800/50',
+  delete:     'text-red-300   bg-red-900/40   border border-red-800/50',
+  import:     'text-purple-300 bg-purple-900/40 border border-purple-800/50',
+  export:     'text-yellow-200 bg-yellow-900/40 border border-yellow-800/50',
+  deactivate: 'text-red-300   bg-red-900/40   border border-red-800/50',
+  reactivate: 'text-green-300 bg-green-900/40 border border-green-800/50',
+  mark_paid:  'text-green-300 bg-green-900/40 border border-green-800/50',
 };
 
 const actionIcon = (a: string) => {
@@ -218,12 +218,12 @@ const LogDetails = ({ log, ctx }: { log: AuditLog; ctx: LookupCtx }) => {
       <ul className="mt-2 space-y-1 text-sm">
         {changes.map((c) => (
           <li key={c.field}>
-            <span className="font-semibold text-18-charcoal">{label(c.field)}:</span>{' '}
-            <span className="text-red-600 line-through">
+            <span className="font-semibold text-white">{label(c.field)}:</span>{' '}
+            <span className="text-red-400 line-through">
               {formatFieldValue(c.field, c.old, ctx)}
             </span>{' '}
             <span className="text-18-dark-text">→</span>{' '}
-            <span className="text-green-700 font-semibold">
+            <span className="text-green-300 font-semibold">
               {formatFieldValue(c.field, c.new, ctx)}
             </span>
           </li>
@@ -252,7 +252,7 @@ const LogDetails = ({ log, ctx }: { log: AuditLog; ctx: LookupCtx }) => {
       <ul className="space-y-1">
         {rows.map(([k, v]) => (
           <li key={k}>
-            <span className="font-semibold text-18-charcoal">{label(k)}:</span>{' '}
+            <span className="font-semibold text-white">{label(k)}:</span>{' '}
             {formatFieldValue(k, v, ctx)}
           </li>
         ))}
@@ -351,7 +351,7 @@ export default function LogsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-18-charcoal">Activity Log</h1>
+        <h1 className="text-2xl font-bold text-white">Activity Log</h1>
         <p className="text-sm text-18-dark-text mt-1">
           Every add, update, delete, import and export is recorded here.
         </p>
@@ -405,19 +405,19 @@ export default function LogsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="card">
           <p className="text-xs uppercase font-bold text-18-dark-text">Total events</p>
-          <h3 className="text-xl font-bold text-18-charcoal">{logs.length}</h3>
+          <h3 className="text-xl font-bold text-white">{logs.length}</h3>
         </div>
         <div className="card">
           <p className="text-xs uppercase font-bold text-18-dark-text">Showing</p>
-          <h3 className="text-xl font-bold text-18-charcoal">{filtered.length}</h3>
+          <h3 className="text-xl font-bold text-white">{filtered.length}</h3>
         </div>
         <div className="card">
           <p className="text-xs uppercase font-bold text-18-dark-text">Modules</p>
-          <h3 className="text-xl font-bold text-18-charcoal">{entities.length}</h3>
+          <h3 className="text-xl font-bold text-white">{entities.length}</h3>
         </div>
         <div className="card">
           <p className="text-xs uppercase font-bold text-18-dark-text">Last event</p>
-          <h3 className="text-sm font-bold text-18-charcoal">
+          <h3 className="text-sm font-bold text-white">
             {logs[0] ? formatTime(logs[0].created_at) : '—'}
           </h3>
         </div>
@@ -445,7 +445,7 @@ export default function LogsPage() {
                       {log.action.replace('_', ' ')}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-18-charcoal">
+                      <p className="text-sm text-white">
                         {log.description || `${log.action} on ${log.table_name}`}
                       </p>
                       <p className="text-xs text-18-dark-text mt-1">
