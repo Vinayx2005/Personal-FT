@@ -150,6 +150,7 @@ export default function ReportsPage() {
     const orange: [number, number, number] = [243, 115, 53];
     const green:  [number, number, number] = [17, 138, 96];
     const red:    [number, number, number] = [204, 51, 51];
+    const amber:  [number, number, number] = [183, 121, 31];
     const ink:    [number, number, number] = [26, 26, 26];
     const muted:  [number, number, number] = [110, 110, 110];
     const line:   [number, number, number] = [220, 220, 220];
@@ -371,6 +372,213 @@ export default function ReportsPage() {
       doc.text(`${pct.toFixed(1)}%`, cPct, y + 14, { align: 'right' });
       y += rowH;
     });
+
+    // ------- PERSONALIZED INSIGHTS -------
+    // Rule-based tips grounded in the user's actual numbers. Each rule that
+    // fires cites concrete figures from their period so the advice never
+    // reads as generic. Cap at 6 to keep the report tight.
+    type Insight = { tone: 'good' | 'watch' | 'action'; title: string; body: string };
+    const insights: Insight[] = [];
+    const months = pnlData.length;
+
+    // 1. Savings rate — the single most predictive personal-finance metric
+    if (totalRevenue > 0) {
+      const savingsRate = (totalProfit / totalRevenue) * 100;
+      if (totalProfit < 0) {
+        insights.push({
+          tone: 'action',
+          title: 'You spent more than you earned',
+          body: `You went ${money(Math.abs(totalProfit))} in the red across ${months} month${months === 1 ? '' : 's'}. Trimming your top spending category by 20% would recover ${money((categoryBreakdown[0]?.value || 0) * 0.2)} — usually enough to swing this positive.`,
+        });
+      } else if (savingsRate < 10) {
+        insights.push({
+          tone: 'watch',
+          title: `Only saving ${savingsRate.toFixed(1)}% of what you earn`,
+          body: `You kept ${money(totalProfit)} from ${money(totalRevenue)}. A healthy target is 20%+. Automate a fixed transfer to savings on payday — you can't spend what isn't in your spending account.`,
+        });
+      } else if (savingsRate < 20) {
+        insights.push({
+          tone: 'good',
+          title: `Solid ${savingsRate.toFixed(1)}% savings rate`,
+          body: `You banked ${money(totalProfit)} from ${money(totalRevenue)}. Push to 20% by trimming one recurring cost — even an extra ${money(totalRevenue * 0.02)}/month gets you there.`,
+        });
+      } else {
+        insights.push({
+          tone: 'good',
+          title: `Excellent ${savingsRate.toFixed(1)}% savings rate`,
+          body: `You saved ${money(totalProfit)} of ${money(totalRevenue)} — well above the 20% benchmark. Consider routing the surplus into an index fund or a liquid emergency buffer.`,
+        });
+      }
+    }
+
+    // 2. Top category concentration — where a single cut has the most impact
+    if (categoryBreakdown.length > 0 && totalExpenses > 0) {
+      const top = categoryBreakdown[0];
+      const share = (top.value / totalExpenses) * 100;
+      if (share >= 40) {
+        insights.push({
+          tone: 'watch',
+          title: `${top.name} dominates your spending`,
+          body: `${money(top.value)} on ${top.name} — ${share.toFixed(0)}% of every rupee spent. If this is fixed (rent, EMI, insurance), fine. If not, it's the highest-leverage line to negotiate or cut.`,
+        });
+      } else if (share >= 25) {
+        insights.push({
+          tone: 'action',
+          title: `${top.name} is your biggest line item`,
+          body: `${money(top.value)} on ${top.name} (${share.toFixed(0)}% of total spend). A 10% trim here saves ${money(top.value * 0.1)} — more than eliminating any smaller category entirely.`,
+        });
+      }
+    }
+
+    // 3. Discretionary share vs 50/30/20 rule (needs 30% cap on discretionary)
+    const discretionaryKeywords = ['dining', 'restaurant', 'food delivery', 'entertainment', 'shopping', 'travel', 'subscription', 'gaming', 'clothes', 'clothing', 'leisure', 'hobbies', 'party'];
+    const discretionarySpend = categoryBreakdown
+      .filter((c) => discretionaryKeywords.some((k) => c.name.toLowerCase().includes(k)))
+      .reduce((s, c) => s + c.value, 0);
+    if (totalExpenses > 0 && discretionarySpend > 0) {
+      const dShare = (discretionarySpend / totalExpenses) * 100;
+      if (dShare > 35) {
+        insights.push({
+          tone: 'action',
+          title: `${dShare.toFixed(0)}% of spend was discretionary`,
+          body: `${money(discretionarySpend)} on dining, shopping, entertainment, subscriptions. The 50/30/20 rule caps discretionary at 30% — pulling to that line would free ${money(discretionarySpend - totalExpenses * 0.30)}.`,
+        });
+      }
+    }
+
+    // 4. Month-over-month expense trend — sudden jumps deserve attention
+    if (pnlData.length >= 2) {
+      const last = pnlData[pnlData.length - 1];
+      const prev = pnlData[pnlData.length - 2];
+      if (prev.expenses > 0) {
+        const delta = ((last.expenses - prev.expenses) / prev.expenses) * 100;
+        if (delta >= 20) {
+          insights.push({
+            tone: 'watch',
+            title: `Spending jumped ${delta.toFixed(0)}% in ${last.month}`,
+            body: `From ${money(prev.expenses)} to ${money(last.expenses)}. Scroll through your ${last.month} expenses and find the outlier — one-off spikes are normal, but if it's a new pattern, catch it now.`,
+          });
+        } else if (delta <= -15) {
+          insights.push({
+            tone: 'good',
+            title: `Nice — spending dropped ${Math.abs(delta).toFixed(0)}% in ${last.month}`,
+            body: `You went from ${money(prev.expenses)} to ${money(last.expenses)}. Whatever changed, keep doing it. Lock the win in with a standing transfer that matches the saving.`,
+          });
+        }
+      }
+    }
+
+    // 5. Best vs worst month — spot repeatable good habits
+    if (pnlData.length >= 3) {
+      const sorted = [...pnlData].sort((a, b) => b.profit - a.profit);
+      const best = sorted[0];
+      const worst = sorted[sorted.length - 1];
+      if (best.month !== worst.month) {
+        const gap = best.profit - worst.profit;
+        if (gap > 1000) {
+          insights.push({
+            tone: 'good',
+            title: `Best: ${best.month} · Toughest: ${worst.month}`,
+            body: `${money(best.profit)} saved in ${best.month} vs. ${worst.profit < 0 ? `${money(Math.abs(worst.profit))} lost` : `only ${money(worst.profit)} saved`} in ${worst.month} — a ${money(gap)} swing. Compare the two — what was different about ${best.month}?`,
+          });
+        }
+      }
+    }
+
+    // 6. Small-purchase "coffee tax" creep
+    const smallExpenses = rawTxs.filter((t) =>
+      t.transaction_type === 'expense' &&
+      t.amount > 0 &&
+      t.amount < 200 &&
+      !t.transfer_group_id
+    );
+    const smallTotal = smallExpenses.reduce((s, t) => s + t.amount, 0);
+    if (smallExpenses.length >= 15 && smallTotal >= 1500) {
+      insights.push({
+        tone: 'watch',
+        title: `${smallExpenses.length} small purchases added up to ${money(smallTotal)}`,
+        body: `Tiny transactions under Rs 200 quietly ate ${money(smallTotal)} this period (${money(smallTotal / Math.max(1, months))}/month). Set a weekly cash-envelope for these so you don't have to weigh every one.`,
+      });
+    }
+
+    // 7. Emergency-runway estimate (only when there's a surplus to measure)
+    if (totalProfit > 0 && totalExpenses > 0 && months >= 2) {
+      const monthlyBurn = totalExpenses / months;
+      const runway = totalProfit / monthlyBurn;
+      if (runway < 1) {
+        insights.push({
+          tone: 'action',
+          title: 'Emergency buffer is thin',
+          body: `Your period surplus (${money(totalProfit)}) covers less than a month at ${money(monthlyBurn)}/mo burn. Target 3-6 months in a liquid account (savings, FD, liquid fund) before investing further.`,
+        });
+      } else if (runway >= 3) {
+        insights.push({
+          tone: 'good',
+          title: `Roughly ${runway.toFixed(1)}-month buffer built this period`,
+          body: `${money(totalProfit)} saved covers ~${runway.toFixed(1)} months of expenses at your ${money(monthlyBurn)}/mo pace. Once you hit a 6-month cushion, direct the next rupee into growth assets.`,
+        });
+      }
+    }
+
+    // Render insights (cap 6, most impactful first — action → watch → good)
+    const toneRank = { action: 0, watch: 1, good: 2 };
+    const topInsights = insights
+      .sort((a, b) => toneRank[a.tone] - toneRank[b.tone])
+      .slice(0, 6);
+
+    if (topInsights.length > 0) {
+      if (y + 120 > pageH - 60) {
+        doc.addPage();
+        y = margin;
+      } else {
+        y += 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(...ink);
+      doc.text('Personalized Insights', margin, y);
+      y += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...muted);
+      doc.text('Tailored to how YOU actually spent this period.', margin, y + 8);
+      y += 24;
+
+      topInsights.forEach((ins) => {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        const bodyLines: string[] = doc.splitTextToSize(pdfSafe(ins.body), contentW - 32);
+        const cardH = 22 + bodyLines.length * 11 + 12;
+
+        if (y + cardH > pageH - 60) {
+          doc.addPage();
+          y = margin;
+        }
+
+        const toneColor = ins.tone === 'good' ? green : ins.tone === 'watch' ? amber : orange;
+
+        // Card
+        doc.setDrawColor(...line);
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(margin, y, contentW, cardH, 8, 8, 'FD');
+        // Left accent bar
+        doc.setFillColor(...toneColor);
+        doc.roundedRect(margin, y, 4, cardH, 2, 2, 'F');
+        // Title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...toneColor);
+        doc.text(pdfSafe(ins.title), margin + 16, y + 18);
+        // Body
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(...ink);
+        doc.text(bodyLines, margin + 16, y + 32);
+
+        y += cardH + 10;
+      });
+    }
 
     // ------- FOOTER on every page -------
     const pageCount = doc.internal.pages.length - 1;
