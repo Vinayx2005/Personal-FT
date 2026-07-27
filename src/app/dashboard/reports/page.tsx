@@ -544,11 +544,11 @@ export default function ReportsPage() {
     doc.setFontSize(10);
     doc.setTextColor(...muted);
     doc.text(pdfSafe(periodLabel), margin, y + 22);
-    y += 34;
+    y += 38;
     doc.setDrawColor(...line);
     doc.setLineWidth(0.5);
     doc.line(margin, y, pageW - margin, y);
-    y += 20;
+    y += 28;
 
     // Score badge + summary side-by-side
     const scoreBoxSize = 88;
@@ -577,16 +577,16 @@ export default function ReportsPage() {
     const sumW = contentW - scoreBoxSize - 20;
     const sumLines: string[] = doc.splitTextToSize(pdfSafe(summary), sumW);
     doc.text(sumLines, sumX, y + 24);
-    y += scoreBoxSize + 22;
+    y += scoreBoxSize + 34;
 
     // Snapshot
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
     doc.setTextColor(...ink);
     doc.text('Snapshot', margin, y);
-    y += 12;
+    y += 20;
     const snapW = (contentW - 24) / 3;
-    const snapH = 54;
+    const snapH = 62;
     const snapItems: { label: string; value: string; color: [number, number, number] }[] = [
       { label: 'INCOME', value: money(totalRevenue), color: green },
       { label: 'EXPENSES', value: money(totalExpenses), color: red },
@@ -600,27 +600,27 @@ export default function ReportsPage() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(...muted);
-      doc.text(s.label, x + 12, y + 18);
+      doc.text(s.label, x + 14, y + 22);
       doc.setFontSize(13);
       doc.setTextColor(...s.color);
-      doc.text(pdfSafe(s.value), x + 12, y + 40);
+      doc.text(pdfSafe(s.value), x + 14, y + 46);
     });
-    y += snapH + 22;
+    y += snapH + 34;
 
     // -- shared helpers for the remaining sections --
     const drawSectionTitle = (t: string) => {
-      if (y + 40 > pageH - 60) { doc.addPage(); y = margin; }
+      if (y + 60 > pageH - 60) { doc.addPage(); y = margin; }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.setTextColor(...ink);
       doc.text(t, margin, y);
-      y += 14;
+      y += 22;
     };
     const drawBulletLine = (text: string, marker: 'good' | 'watch' | 'note' | 'plain' | 'num', numIdx?: number) => {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      const lines: string[] = doc.splitTextToSize(pdfSafe(text), contentW - 22);
-      const h = lines.length * 12 + 4;
+      const lines: string[] = doc.splitTextToSize(pdfSafe(text), contentW - 26);
+      const h = lines.length * 13 + 10;
       if (y + h > pageH - 60) { doc.addPage(); y = margin; }
       const markerColor = marker === 'good' ? green
                         : marker === 'watch' ? amber
@@ -629,17 +629,17 @@ export default function ReportsPage() {
       if (marker === 'num') {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...orange);
-        doc.text(`${numIdx}.`, margin + 2, y + 8);
+        doc.text(`${numIdx}.`, margin + 2, y + 9);
       } else if (marker === 'plain') {
         doc.setFillColor(...muted);
-        doc.circle(margin + 5, y + 5, 1.5, 'F');
+        doc.circle(margin + 6, y + 6, 1.8, 'F');
       } else {
         doc.setFillColor(...markerColor);
-        doc.circle(margin + 5, y + 5, 3, 'F');
+        doc.circle(margin + 6, y + 6, 3.2, 'F');
       }
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...ink);
-      doc.text(lines, margin + 16, y + 8);
+      doc.text(lines, margin + 20, y + 9);
       y += h;
     };
 
@@ -650,34 +650,34 @@ export default function ReportsPage() {
     } else {
       keyBullets.forEach((b) => drawBulletLine(b.text, b.tone));
     }
-    y += 8;
+    y += 22;
 
     // Recommendations
     drawSectionTitle('Recommendations');
     recs.forEach((r, i) => drawBulletLine(r, 'num', i + 1));
-    y += 8;
+    y += 22;
 
     // Action Plan
     drawSectionTitle('Action Plan (Next 90 Days)');
     actions.forEach((a) => drawBulletLine(a, 'plain'));
-    y += 12;
+    y += 26;
 
     // Final Verdict — italic paragraph inside a subtle box with orange accent
-    if (y + 100 > pageH - 60) { doc.addPage(); y = margin; }
+    if (y + 120 > pageH - 60) { doc.addPage(); y = margin; }
     drawSectionTitle('Final Verdict');
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
-    const vLines: string[] = doc.splitTextToSize(pdfSafe(verdict), contentW - 24);
-    const vH = vLines.length * 12 + 20;
+    const vLines: string[] = doc.splitTextToSize(pdfSafe(verdict), contentW - 28);
+    const vH = vLines.length * 13 + 28;
     if (y + vH > pageH - 60) { doc.addPage(); y = margin; }
     doc.setDrawColor(...line);
     doc.setFillColor(...stripe);
-    doc.roundedRect(margin, y - 6, contentW, vH, 8, 8, 'FD');
+    doc.roundedRect(margin, y - 4, contentW, vH, 8, 8, 'FD');
     doc.setFillColor(...orange);
-    doc.roundedRect(margin, y - 6, 4, vH, 2, 2, 'F');
+    doc.roundedRect(margin, y - 4, 4, vH, 2, 2, 'F');
     doc.setTextColor(...ink);
-    doc.text(vLines, margin + 16, y + 10);
-    y += vH + 6;
+    doc.text(vLines, margin + 18, y + 14);
+    y += vH + 10;
 
     // ------- FOOTER on every page -------
     const pageCount = doc.internal.pages.length - 1;
