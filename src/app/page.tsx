@@ -5,20 +5,21 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import {
-  Zap,
+  Mic,
   Eye,
   Shield,
   Smartphone,
   LineChart,
   ArrowRight,
   Check,
+  X as XIcon,
   Flame,
   Wallet,
   TrendingUp,
   Sparkles,
 } from 'lucide-react';
 
-const ROTATING_WORDS = ['money', 'rent', 'food', 'salary', 'fuel'];
+const ROTATING_WORDS = ['Simple', 'Clear', 'Yours', 'Easy', 'Human'];
 
 export default function LandingPage() {
   const router = useRouter();
@@ -105,9 +106,9 @@ export default function LandingPage() {
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto px-4 md:px-8 pt-14 md:pt-20 pb-16 text-center">
-          {/* Trust badges — real, not fake stars */}
+          {/* Trust badges */}
           <div className="inline-flex flex-wrap items-center justify-center gap-2 mb-8 px-1">
-            {['Free forever', 'No bank linking', 'PWA-ready'].map((t) => (
+            {['Voice-based tracking', 'Under 5 min a day', 'No bank linking'].map((t) => (
               <span
                 key={t}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-300 bg-18-surface/60 border border-18-border/60 rounded-full px-3 py-1 backdrop-blur-sm"
@@ -119,18 +120,17 @@ export default function LandingPage() {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-black leading-[1.05] tracking-tight mb-8">
-            <span className="text-18-orange">Know</span>{' '}
-            <span className="text-white">where</span>
+            <span className="text-white">Personal Finance,</span>
             <br />
-            <span className="text-white">your </span>
-            <span className="hero-rotator text-18-orange italic inline-block align-baseline">
-              <span key={wordIdx}>{ROTATING_WORDS[wordIdx]}</span>
+            <span className="text-white">Finally Made </span>
+            <span className="hero-rotator text-18-orange italic inline-block align-baseline min-w-[4.5ch] md:min-w-[6ch] text-left">
+              <span key={wordIdx}>{ROTATING_WORDS[wordIdx]}.</span>
             </span>
-            <span className="text-white"> goes.</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-gray-300 max-w-xl mx-auto mb-10 leading-relaxed">
-            See your spending leaks in 30 seconds a day. No bank linking, no scraping.
+          <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Stop wondering where your money goes. Track spending with voice notes,
+            understand your habits, and take control — in under 5 minutes a day.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
@@ -279,15 +279,15 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               {
-                icon: Zap,
-                title: 'Quick Add',
-                body: 'Four lines, one tap from your home screen. Log an expense faster than you can order chai.',
+                icon: Mic,
+                title: 'Voice-based tracking',
+                body: 'Speak your expense — "Paid 500 for groceries at DMart" — Personal FT parses it and files it in the right category.',
                 gradient: 'from-amber-500 to-orange-600',
               },
               {
                 icon: Eye,
                 title: 'Spot the leaks',
-                body: 'Weekly recaps show your biggest categories, unusual spikes, and subscriptions you forgot about.',
+                body: 'Category-wise analysis and monthly reports show your biggest lines, spikes, and subscriptions you forgot about.',
                 gradient: 'from-purple-500 to-fuchsia-500',
               },
               {
@@ -313,6 +313,94 @@ export default function LandingPage() {
                 <h3 className="text-lg font-bold text-white mb-2">{f.title}</h3>
                 <p className="text-sm text-gray-400 leading-relaxed">{f.body}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* -------------------- BEFORE PFT vs AFTER PFT --------------------- */}
+      <section className="relative bg-18-bg py-24 border-t border-18-border/30">
+        <div className="max-w-4xl mx-auto px-4 md:px-8">
+          <div className="text-center mb-14">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-18-orange bg-18-orange/10 border border-18-orange/30 rounded-full px-3 py-1 mb-4">
+              The shift
+            </span>
+            <h2 className="text-4xl md:text-5xl font-black leading-tight text-white mb-4">
+              Before Personal FT{' '}
+              <span className="text-18-orange italic">vs</span> after.
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              The everyday change once tracking becomes effortless.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Before column */}
+            <div className="bg-18-surface/40 border border-18-border rounded-2xl p-6 md:p-8">
+              <div className="inline-flex items-center gap-2 mb-6">
+                <span className="w-2 h-2 rounded-full bg-gray-500" />
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Before</span>
+              </div>
+              <ul className="space-y-4">
+                {[
+                  'Unsure where your salary goes',
+                  'Manual finance tracking',
+                  'Unnecessary spending',
+                  'No financial visibility',
+                  'Budgeting feels difficult',
+                  'Financial stress',
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-3">
+                    <XIcon className="text-gray-600 mt-0.5 flex-shrink-0" size={16} />
+                    <span className="text-gray-400 line-through decoration-gray-700">{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* After column */}
+            <div className="relative bg-gradient-to-br from-18-orange/10 via-18-surface to-18-surface border border-18-orange/40 rounded-2xl p-6 md:p-8 shadow-[0_0_60px_-15px_rgba(243,115,53,0.35)]">
+              <div className="inline-flex items-center gap-2 mb-6">
+                <span className="w-2 h-2 rounded-full bg-18-orange" />
+                <span className="text-xs font-bold uppercase tracking-wider text-18-orange">After Personal FT</span>
+              </div>
+              <ul className="space-y-4">
+                {[
+                  'Know exactly where every rupee goes',
+                  'Track with voice notes',
+                  'Reduce wasteful expenses',
+                  'Monthly reports & insights',
+                  'Stay on budget',
+                  'Financial clarity & confidence',
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-3">
+                    <Check className="text-emerald-400 mt-0.5 flex-shrink-0" size={16} />
+                    <span className="text-white">{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ----------------------------- MADE FOR ---------------------------- */}
+      <section className="bg-18-bg py-14 border-t border-18-border/30">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-5">Made for</p>
+          <div className="flex flex-wrap justify-center gap-2 md:gap-3">
+            {[
+              'Working professionals (22–30)',
+              'Freelancers',
+              'Anyone earning ₹40k+ a month',
+              'People tired of spreadsheet budgets',
+            ].map((tag) => (
+              <span
+                key={tag}
+                className="text-sm text-gray-300 bg-18-surface border border-18-border rounded-full px-4 py-1.5"
+              >
+                {tag}
+              </span>
             ))}
           </div>
         </div>
@@ -429,20 +517,28 @@ export default function LandingPage() {
           <div className="space-y-3">
             {[
               {
-                q: 'Do I need to connect my bank account?',
-                a: 'No. Personal FT never asks for bank credentials. You enter transactions manually or via CSV — that’s the whole point of the privacy angle.',
+                q: 'Do I need any finance knowledge to use this?',
+                a: 'No. Personal FT is built for people who never learned "budgeting" — log what you spend, and the reports explain the rest.',
               },
               {
-                q: 'Is it really free?',
-                a: 'Yes, the core tracker is free forever. Paid tier (coming soon) will add power-user features like SMS auto-parse and monthly recap emails.',
+                q: 'How much time does it take daily?',
+                a: 'Under 5 minutes. Voice-log a spend in seconds, glance at the dashboard once a day. That is the whole workflow.',
+              },
+              {
+                q: 'Do I need to connect my bank account?',
+                a: 'No. Personal FT never asks for bank credentials. You enter transactions with voice, quick-add, or a CSV import — that is the whole point of the privacy angle.',
+              },
+              {
+                q: 'Is my data secure?',
+                a: 'Yes. Data is stored per-user with row-level security, encrypted in transit, and you can export or delete everything from settings at any time.',
+              },
+              {
+                q: 'Do I need Excel or any spreadsheets?',
+                a: 'No. Personal FT replaces the spreadsheet — categories, reports, budgets, and monthly summaries are built in.',
               },
               {
                 q: 'Can I use it on my phone?',
                 a: 'Yes — installable as a PWA on both Android and iOS. Icon on home screen, one tap opens Quick Add. Feels like a native app.',
-              },
-              {
-                q: 'What happens to my data if I stop using it?',
-                a: 'You own it. Export any time from settings. Delete account nukes everything — clean exit, no dark patterns.',
               },
             ].map((item, i) => (
               <details
@@ -467,11 +563,12 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute inset-0 bg-glow-hero" aria-hidden />
         <div className="relative z-10 max-w-3xl mx-auto px-4 md:px-8 text-center">
           <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
-            Start seeing your{' '}
-            <span className="text-18-orange italic">money clearly.</span>
+            Start making smarter money{' '}
+            <span className="text-18-orange italic">decisions today.</span>
           </h2>
-          <p className="text-lg text-gray-300 mb-8">
-            Free forever. No credit card. No bank linking.
+          <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
+            Personal finance doesn&apos;t have to be complicated. Build better habits,
+            understand your spending, and take control — in just a few minutes each day.
           </p>
           <Link
             href="/signup"
