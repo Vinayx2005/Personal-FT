@@ -123,6 +123,17 @@ export interface MonthlySummary {
   net_change: number;
 }
 
+export interface Budget {
+  id: number;
+  user_id: string;
+  category_id: number;
+  // First day of the month (YYYY-MM-01) the budget applies to.
+  month: string;
+  amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuthError {
   message: string;
   code?: string;

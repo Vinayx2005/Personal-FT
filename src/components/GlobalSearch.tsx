@@ -139,19 +139,19 @@ export default function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-18-sm border border-18-border bg-18-surface hover:border-18-orange transition-colors text-sm text-18-dark-text"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-18-sm border border-18-border bg-18-surface hover:border-18-orange transition-colors text-sm text-18-dark-text w-full sm:w-72 md:w-96"
         title="Search (Ctrl+K)"
       >
         <Search size={14} />
-        <span>Search…</span>
-        <span className="hidden md:inline text-xs text-18-dark-text ml-4 px-1.5 py-0.5 rounded border border-18-border">
+        <span className="flex-1 text-left">Search…</span>
+        <span className="hidden md:inline text-xs text-18-dark-text px-1.5 py-0.5 rounded border border-18-border">
           Ctrl+K
         </span>
       </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24"
+          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-12 sm:pt-24"
           onClick={() => setOpen(false)}
         >
           <div

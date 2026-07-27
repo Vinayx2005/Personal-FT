@@ -10,6 +10,7 @@ import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@
 import { logAction } from '@/lib/auditLog';
 import CategorySelect from '@/components/CategorySelect';
 import DateRangePicker from '@/components/DateRangePicker';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 import ReceiptPreview from '@/components/ReceiptPreview';
 import { DateRange, defaultRange } from '@/lib/dateRanges';
 import { groupByMonth } from '@/lib/utils';
@@ -35,11 +36,9 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [range, setRange] = useState<DateRange>(defaultRange());
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [categoryFilter, setCategoryFilter] = useState<Set<number>>(new Set());
-  const [searchText, setSearchText] = useState('');
-  const [minAmount, setMinAmount] = useState<string>('');
-  const [maxAmount, setMaxAmount] = useState<string>('');
+  const [bankFilter, setBankFilter] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [viewing, setViewing] = useState<{ expense: Transaction } | null>(null);
 
   const openView = (expense: Transaction) => {
@@ -420,17 +419,9 @@ export default function ExpensesPage() {
   const inRangeAll = expenses.filter(
     (e) => e.transaction_date >= range.from && e.transaction_date <= range.to
   );
-  const q = searchText.trim().toLowerCase();
-  const minA = minAmount.trim() ? parseFloat(minAmount) : null;
-  const maxA = maxAmount.trim() ? parseFloat(maxAmount) : null;
   const inRange = inRangeAll.filter((e) => {
     if (categoryFilter.size > 0 && !categoryFilter.has(e.category_id)) return false;
-    if (q) {
-      const desc = (e.description || '').toLowerCase();
-      if (!desc.includes(q)) return false;
-    }
-    if (minA !== null && !isNaN(minA) && (e.amount || 0) < minA) return false;
-    if (maxA !== null && !isNaN(maxA) && (e.amount || 0) > maxA) return false;
+    if (bankFilter.size > 0 && !bankFilter.has(e.bank_id)) return false;
     return true;
   });
   const catNameOf = (id: number) =>
@@ -520,85 +511,6 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Filters (Item 8) */}
-      <div className="mb-4 card !p-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
-          <input
-            type="text"
-            placeholder="Search description…"
-            className="form-input md:col-span-2 !py-2 text-sm"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="Min amount"
-            className="form-input !py-2 text-sm"
-            value={minAmount}
-            onChange={(e) => setMinAmount(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="Max amount"
-            className="form-input !py-2 text-sm"
-            value={maxAmount}
-            onChange={(e) => setMaxAmount(e.target.value)}
-          />
-        </div>
-        <details className="mt-1">
-          <summary className="cursor-pointer text-xs font-semibold text-white flex items-center justify-between">
-            <span>
-              Filter by category
-              {categoryFilter.size > 0 && (
-                <span className="ml-2 text-xs bg-18-orange text-white rounded-full px-2 py-0.5">
-                  {categoryFilter.size} selected
-                </span>
-              )}
-            </span>
-            {(categoryFilter.size > 0 || searchText || minAmount || maxAmount) && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  setCategoryFilter(new Set());
-                  setSearchText('');
-                  setMinAmount('');
-                  setMaxAmount('');
-                }}
-                className="text-xs text-18-orange hover:underline"
-              >
-                Clear all
-              </button>
-            )}
-          </summary>
-          <div className="p-3 border-t border-18-border mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto">
-            {categories.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => {
-              const checked = categoryFilter.has(c.id);
-              return (
-                <label
-                  key={c.id}
-                  className={`flex items-center gap-2 p-2 rounded text-xs cursor-pointer border ${
-                    checked ? 'bg-18-orange/10 border-18-orange' : 'bg-18-surface border-18-border hover:border-18-dark-text'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    className="h-3.5 w-3.5 accent-18-orange"
-                    checked={checked}
-                    onChange={(e) => {
-                      const next = new Set(categoryFilter);
-                      if (e.target.checked) next.add(c.id);
-                      else next.delete(c.id);
-                      setCategoryFilter(next);
-                    }}
-                  />
-                  <span className="truncate">{c.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        </details>
-      </div>
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="card bg-red-900/20 border-red-800/40">
@@ -616,9 +528,34 @@ export default function ExpensesPage() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <MultiSelectFilter
+          label="Category"
+          options={categories.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ value: c.id, label: c.name }))}
+          selected={categoryFilter}
+          onChange={setCategoryFilter}
+        />
+        <MultiSelectFilter
+          label="Bank"
+          options={banks.slice().sort((a, b) => a.bank_name.localeCompare(b.bank_name)).map((b) => ({ value: b.id, label: b.bank_name }))}
+          selected={bankFilter}
+          onChange={setBankFilter}
+        />
+        {(categoryFilter.size > 0 || bankFilter.size > 0) && (
+          <button
+            type="button"
+            onClick={() => { setCategoryFilter(new Set()); setBankFilter(new Set()); }}
+            className="text-xs text-18-orange hover:underline ml-1"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
       {/* Form (modal) */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center overflow-y-auto p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}>
           <div className="card bg-18-surface border-18-border w-full max-w-3xl my-8 shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-white">
@@ -949,7 +886,7 @@ export default function ExpensesPage() {
         const bank = banks.find((b) => b.id === exp.bank_id);
         return (
           <div
-            className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4"
+            className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center overflow-y-auto p-4"
             onClick={(e) => {
               if (e.target === e.currentTarget) setViewing(null);
             }}

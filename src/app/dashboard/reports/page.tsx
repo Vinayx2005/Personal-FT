@@ -20,11 +20,20 @@ interface PnLData {
 export default function ReportsPage() {
   const [pnlData, setPnLData] = useState<PnLData[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<any[]>([]);
+  const [budgetVsActual, setBudgetVsActual] = useState<{ name: string; budget: number; actual: number }[]>([]);
   const [rawTxs, setRawTxs] = useState<Transaction[]>([]);
   const [catById, setCatById] = useState<Record<number, Category>>({});
   const [drillCategory, setDrillCategory] = useState<string | null>(null);
   const [monthlyComparison, setMonthlyComparison] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
   const [range, setRange] = useState<DateRange>(rangeFor('current_fy'));
 
   // Category palette — all readable on the dark #0A0A0A background
@@ -114,6 +123,55 @@ export default function ReportsPage() {
           catMap[c.id] = c as Category;
         });
         setCatById(catMap);
+
+        // ---- Budget vs Actual for the selected range ----
+        // Enumerate every YYYY-MM-01 that falls within [from, to] and pull
+        // any budgets set for those months. Sum per category, then join with
+        // per-category actual spend.
+        const monthStarts: string[] = [];
+        {
+          const [fy, fm] = range.from.split('-').map(Number);
+          const [ty, tm] = range.to.split('-').map(Number);
+          let y = fy, m = fm;
+          // Safety cap in case of a corrupt range
+          for (let i = 0; i < 60 && (y < ty || (y === ty && m <= tm)); i++) {
+            monthStarts.push(`${y}-${String(m).padStart(2, '0')}-01`);
+            m++; if (m > 12) { m = 1; y++; }
+          }
+        }
+        const { data: budgetsData } = monthStarts.length > 0
+          ? await supabase.from('budgets').select('category_id, amount, month').in('month', monthStarts)
+          : { data: [] as any[] };
+        const budgetByCatId = new Map<number, number>();
+        (budgetsData || []).forEach((b: any) => {
+          budgetByCatId.set(b.category_id, (budgetByCatId.get(b.category_id) || 0) + Number(b.amount));
+        });
+        const spendByCatId = new Map<number, number>();
+        transactionsData?.forEach((t: Transaction) => {
+          if (t.transaction_type === 'expense' && !isExcluded(t)) {
+            spendByCatId.set(t.category_id, (spendByCatId.get(t.category_id) || 0) + t.amount);
+          }
+        });
+        const catIds = new Set<number>([
+          ...Array.from(budgetByCatId.keys()),
+          ...Array.from(spendByCatId.keys()),
+        ]);
+        const bva = Array.from(catIds)
+          .map((cid) => ({
+            name: catMap[cid]?.name || 'Unknown',
+            budget: budgetByCatId.get(cid) || 0,
+            actual: spendByCatId.get(cid) || 0,
+          }))
+          .filter((r) => r.budget > 0 || r.actual > 0)
+          .sort((a, b) => {
+            // Over-budget first, then by actual desc
+            const aOver = a.budget > 0 && a.actual > a.budget ? 1 : 0;
+            const bOver = b.budget > 0 && b.actual > b.budget ? 1 : 0;
+            if (aOver !== bOver) return bOver - aOver;
+            return b.actual - a.actual;
+          });
+        setBudgetVsActual(bva);
+
         setLoading(false);
       } catch (err) {
         console.error('Error fetching reports:', err);
@@ -372,6 +430,109 @@ export default function ReportsPage() {
       doc.text(`${pct.toFixed(1)}%`, cPct, y + 14, { align: 'right' });
       y += rowH;
     });
+
+    // ------- BUDGET VS ACTUAL -------
+    if (budgetVsActual.length > 0) {
+      // Fresh page if not enough room for header + a couple of rows
+      if (y + 120 > pageH - 60) {
+        doc.addPage();
+        y = margin;
+      } else {
+        y += 30;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(...ink);
+      doc.text('Budget vs Actual', margin, y);
+      y += 6;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...muted);
+      doc.text(
+        `Aggregated across ${pnlData.length} month${pnlData.length === 1 ? '' : 's'} in range`,
+        margin, y + 8
+      );
+      y += 18;
+
+      // Column layout
+      const bcCat = margin + 12;
+      const bcBudget = margin + contentW * 0.42;
+      const bcActual = margin + contentW * 0.60;
+      const bcVar    = margin + contentW * 0.80;
+      const bcStatus = margin + contentW * 0.95;
+
+      // Header row
+      doc.setFillColor(...ink);
+      doc.roundedRect(margin, y, contentW, 24, 4, 4, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text('CATEGORY', bcCat, y + 15);
+      doc.text('BUDGET',   bcBudget, y + 15, { align: 'right' });
+      doc.text('ACTUAL',   bcActual, y + 15, { align: 'right' });
+      doc.text('VARIANCE', bcVar,    y + 15, { align: 'right' });
+      doc.text('%',        bcStatus, y + 15, { align: 'right' });
+      y += 24;
+
+      // Body rows
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      let totalBudget = 0, totalActual = 0;
+      budgetVsActual.forEach((r, i) => {
+        if (y + rowH > pageH - 60) { doc.addPage(); y = margin; }
+        if (i % 2 === 0) {
+          doc.setFillColor(...stripe);
+          doc.rect(margin, y, contentW, rowH, 'F');
+        }
+        const variance = r.budget - r.actual;
+        const over = r.budget > 0 && r.actual > r.budget;
+        const pct = r.budget > 0 ? (r.actual / r.budget) * 100 : 0;
+        totalBudget += r.budget;
+        totalActual += r.actual;
+
+        doc.setTextColor(...ink);
+        doc.text(pdfSafe(r.name), bcCat, y + 14);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...muted);
+        doc.text(r.budget > 0 ? money(r.budget) : '-', bcBudget, y + 14, { align: 'right' });
+        doc.setTextColor(...(over ? red : ink));
+        if (over) doc.setFont('helvetica', 'bold');
+        doc.text(money(r.actual), bcActual, y + 14, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        if (r.budget > 0) {
+          doc.setTextColor(...(variance >= 0 ? green : red));
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${variance >= 0 ? '+' : '-'}${money(Math.abs(variance))}`, bcVar, y + 14, { align: 'right' });
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...(over ? red : muted));
+          doc.text(`${pct.toFixed(0)}%`, bcStatus, y + 14, { align: 'right' });
+        } else {
+          doc.setTextColor(...muted);
+          doc.text('-', bcVar, y + 14, { align: 'right' });
+          doc.text('-', bcStatus, y + 14, { align: 'right' });
+        }
+        y += rowH;
+      });
+
+      // Total row
+      doc.setDrawColor(...ink);
+      doc.setLineWidth(1);
+      doc.line(margin, y, pageW - margin, y);
+      y += 4;
+      doc.setFillColor(...ink);
+      doc.rect(margin, y, contentW, rowH, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text('TOTAL', bcCat, y + 14);
+      doc.text(money(totalBudget), bcBudget, y + 14, { align: 'right' });
+      doc.text(money(totalActual), bcActual, y + 14, { align: 'right' });
+      const totalVar = totalBudget - totalActual;
+      doc.text(`${totalVar >= 0 ? '+' : '-'}${money(Math.abs(totalVar))}`, bcVar, y + 14, { align: 'right' });
+      const totalPct = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+      doc.text(`${totalPct.toFixed(0)}%`, bcStatus, y + 14, { align: 'right' });
+      y += rowH;
+    }
 
     // ------- FINANCIAL HEALTH REPORT -------
     // Full-page assessment tailored to the user's numbers: score, snapshot,
@@ -838,7 +999,7 @@ export default function ReportsPage() {
             <>
               <div className="flex justify-center items-center">
                 <ResponsiveContainer width="100%" height={340}>
-                  <PieChart margin={{ top: 40, right: 100, bottom: 40, left: 100 }}>
+                  <PieChart margin={isMobile ? { top: 10, right: 10, bottom: 10, left: 10 } : { top: 40, right: 100, bottom: 40, left: 100 }}>
                     <Pie
                       data={categoryBreakdown}
                       cx="50%"
@@ -848,6 +1009,7 @@ export default function ReportsPage() {
                       // Keeps labels far from the pie so they can breathe.
                       labelLine={(props: any) => {
                         const { cx, cy, midAngle, outerRadius, percent } = props;
+                        if (isMobile) return <g />;
                         if (percent < 0.03) return <g />;
                         const RADIAN = Math.PI / 180;
                         const sin = Math.sin(-midAngle * RADIAN);
@@ -872,6 +1034,7 @@ export default function ReportsPage() {
                       // Slices under 3% get no label (they'd overlap) — the
                       // Category Details list beside the chart shows them all.
                       label={({ name, value, percent, cx, cy, midAngle, outerRadius }: any) => {
+                        if (isMobile) return null;
                         if (percent < 0.03) return null;
                         const RADIAN = Math.PI / 180;
                         const cos = Math.cos(-midAngle * RADIAN);
@@ -961,6 +1124,98 @@ export default function ReportsPage() {
         </div>
       </div>
 
+      {/* ---- Budget vs Actual ---- */}
+      <div className="card bg-18-surface mt-8 mb-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
+          <h2 className="text-xl font-bold text-white">Budget vs Actual</h2>
+          <p className="text-xs text-white/50">
+            Aggregated across {pnlData.length} month{pnlData.length === 1 ? '' : 's'} in range
+          </p>
+        </div>
+        {budgetVsActual.length === 0 ? (
+          <div className="text-center py-10 text-18-dark-text text-sm">
+            <p>No budgets set for this period.</p>
+            <p className="text-xs mt-2">
+              Head to <a href="/dashboard/budgets" className="text-18-orange hover:underline">Budgets</a> to set monthly caps per category.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-widest text-white/40 border-b border-18-border/60">
+                  <th className="text-left px-3 py-2 font-bold">Category</th>
+                  <th className="text-right px-3 py-2 font-bold">Budget</th>
+                  <th className="text-right px-3 py-2 font-bold">Actual</th>
+                  <th className="text-right px-3 py-2 font-bold">Variance</th>
+                  <th className="px-3 py-2 font-bold w-[180px]">Used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {budgetVsActual.map((r) => {
+                  const variance = r.budget - r.actual;
+                  const pct = r.budget > 0 ? (r.actual / r.budget) * 100 : 0;
+                  const over = r.budget > 0 && r.actual > r.budget;
+                  const noBudget = r.budget === 0;
+                  const barColor = over ? 'bg-rose-500' : pct >= 85 ? 'bg-amber-500' : 'bg-emerald-500';
+                  return (
+                    <tr key={r.name} className="border-b border-18-border/40">
+                      <td className="px-3 py-3 text-white font-semibold">{r.name}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-white/80">
+                        {noBudget ? <span className="text-white/30">—</span> : formatCurrency(r.budget)}
+                      </td>
+                      <td className={`px-3 py-3 text-right tabular-nums ${over ? 'text-rose-400 font-semibold' : 'text-white/80'}`}>
+                        {formatCurrency(r.actual)}
+                      </td>
+                      <td className={`px-3 py-3 text-right tabular-nums font-semibold ${
+                        noBudget ? 'text-white/30' : variance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                      }`}>
+                        {noBudget ? '—' : `${variance >= 0 ? '+' : '−'}${formatCurrency(Math.abs(variance))}`}
+                      </td>
+                      <td className="px-3 py-3">
+                        {noBudget ? (
+                          <span className="text-[10px] text-white/30 italic">No budget set</span>
+                        ) : (
+                          <div>
+                            <div className="h-2 bg-18-bg rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${barColor} rounded-full transition-all`}
+                                style={{ width: `${Math.min(100, pct)}%` }}
+                              />
+                            </div>
+                            <p className={`text-[10px] mt-1 font-semibold ${over ? 'text-rose-400' : 'text-white/50'}`}>
+                              {pct.toFixed(0)}% used
+                            </p>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                {(() => {
+                  const totalBudget = budgetVsActual.reduce((s, r) => s + r.budget, 0);
+                  const totalActual = budgetVsActual.reduce((s, r) => s + r.actual, 0);
+                  const totalVar = totalBudget - totalActual;
+                  return (
+                    <tr className="bg-18-bg/60 font-bold">
+                      <td className="px-3 py-3 text-white uppercase text-xs tracking-wider">Total</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-white">{formatCurrency(totalBudget)}</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-white">{formatCurrency(totalActual)}</td>
+                      <td className={`px-3 py-3 text-right tabular-nums ${totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {totalVar >= 0 ? '+' : '−'}{formatCurrency(Math.abs(totalVar))}
+                      </td>
+                      <td />
+                    </tr>
+                  );
+                })()}
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+
       {drillCategory && (() => {
         const txsInCat = rawTxs.filter((t) => {
           if (t.transaction_type !== 'expense') return false;
@@ -970,7 +1225,7 @@ export default function ReportsPage() {
         const total = txsInCat.reduce((s, t) => s + t.amount, 0);
         return (
           <div
-            className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4"
+            className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center overflow-y-auto p-4"
             onClick={(e) => { if (e.target === e.currentTarget) setDrillCategory(null); }}
           >
             <div className="card bg-18-surface w-full max-w-3xl my-8 shadow-2xl">

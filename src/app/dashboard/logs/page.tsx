@@ -355,7 +355,7 @@ export default function LogsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
-        <div className="flex-1 min-w-[240px]">
+        <div className="w-full sm:flex-1 sm:min-w-[240px]">
           <label className="form-label">Search</label>
           <input
             type="text"
@@ -365,10 +365,10 @@ export default function LogsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="form-label">Module</label>
           <select
-            className="form-select min-w-[180px]"
+            className="form-select w-full sm:w-auto sm:min-w-[180px]"
             value={entityFilter}
             onChange={(e) => setEntityFilter(e.target.value)}
           >
@@ -380,10 +380,10 @@ export default function LogsPage() {
             ))}
           </select>
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <label className="form-label">Action</label>
           <select
-            className="form-select min-w-[160px]"
+            className="form-select w-full sm:w-auto sm:min-w-[160px]"
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
           >

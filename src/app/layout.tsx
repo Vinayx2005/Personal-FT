@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import './globals.css';
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 export const metadata = {
   title: 'Personal FT — Know where your money goes',
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <title>Personal FT</title>
       </head>
-      <body className="font-lato bg-18-bg">{children}</body>
+      <body className="font-lato bg-18-bg">
+        <ServiceWorkerRegistrar />
+        {children}
+      </body>
     </html>
   );
 }

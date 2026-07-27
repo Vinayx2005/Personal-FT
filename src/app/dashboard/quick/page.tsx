@@ -7,7 +7,8 @@ import { formatCurrency } from '@/lib/utils';
 import { logAction } from '@/lib/auditLog';
 import { fetchCurrentStreak } from '@/lib/streak';
 import { parseVoiceInput, toQuickAddText } from '@/lib/voiceParse';
-import { Flame, Zap, Check, AlertCircle, Mic, Loader2 } from 'lucide-react';
+import { Flame, Check, AlertCircle, Mic } from 'lucide-react';
+import AddToHomeButton from '@/components/AddToHomeButton';
 
 interface Feedback {
   type: 'success' | 'error';
@@ -256,98 +257,107 @@ export default function QuickAddPage() {
       {/* Page header — mirrors dashboard style */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-black text-white tracking-tight">Quick Add</h1>
-            {streak > 0 && (
-              <span className="inline-flex items-center gap-1.5 bg-18-orange/15 border border-18-orange/40 rounded-full px-3 py-1 text-xs font-bold text-18-orange shadow-[0_0_20px_-5px_rgba(243,115,53,0.5)]">
-                <Flame size={12} /> {streak}-day streak
-              </span>
-            )}
-          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight mb-1">Quick Add</h1>
           <p className="text-sm text-white/50">
             Log an expense in one shot — 4 lines, done.
           </p>
         </div>
+        <AddToHomeButton />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Entry area */}
+        {/* Entry area — voice-first */}
         <div className="lg:col-span-2 relative overflow-hidden bg-18-surface border border-18-border rounded-2xl p-6 shadow-[inset_0_0_120px_-40px_rgba(243,115,53,0.15)]">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-18-orange/15 border border-18-orange/40 flex items-center justify-center">
-                <Zap className="text-18-orange" size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">4-line format</p>
-                <p className="text-xs text-white/50">amount / description / category / bank</p>
-              </div>
-            </div>
-
-            {/* Voice input */}
-            <button
-              type="button"
-              onClick={handleMicClick}
-              disabled={voiceState === 'unsupported'}
-              title={
-                voiceState === 'listening'
-                  ? 'Stop listening'
-                  : 'Speak to fill — e.g. "Paid 500 for noodles from SBI today"'
-              }
-              className={`relative h-11 w-11 rounded-full flex items-center justify-center transition-all shrink-0 ${
-                voiceState === 'listening'
-                  ? 'bg-18-orange text-white shadow-[0_0_30px_rgba(243,115,53,0.75)]'
-                  : 'bg-18-orange/15 border border-18-orange/40 text-18-orange hover:bg-18-orange/25'
-              }`}
-              aria-label="Voice input"
-            >
-              {voiceState === 'listening' ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  <span className="absolute inset-0 rounded-full bg-18-orange/40 animate-ping" />
-                </>
-              ) : (
-                <Mic size={18} />
-              )}
-            </button>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">
+              Voice Add
+            </p>
+            {streak > 0 && <Flame size={14} className="text-18-orange" />}
           </div>
 
-          {voiceState === 'listening' && (
-            <div className="mb-3 flex items-center gap-2 text-xs text-18-orange font-semibold">
-              <span className="inline-block h-2 w-2 rounded-full bg-18-orange animate-pulse" />
-              Listening… speak now
+          {/* Big pulsing mic — the centrepiece */}
+          <div className="flex flex-col items-center py-8">
+            <div className="relative flex items-center justify-center w-24 h-24 md:w-28 md:h-28">
+              {voiceState === 'listening' && (
+                <>
+                  <span
+                    className="absolute inset-0 rounded-full bg-18-orange/50 animate-ping"
+                    aria-hidden
+                  />
+                  <span
+                    className="absolute inset-2 rounded-full bg-18-orange/30 animate-ping"
+                    style={{ animationDelay: '0.5s' }}
+                    aria-hidden
+                  />
+                </>
+              )}
+              <button
+                type="button"
+                onClick={handleMicClick}
+                disabled={voiceState === 'unsupported'}
+                title={
+                  voiceState === 'listening'
+                    ? 'Tap to stop'
+                    : 'Tap and speak — e.g. "Paid 500 for groceries from HDFC"'
+                }
+                className={`relative w-20 h-20 md:w-24 md:h-24 rounded-full flex items-center justify-center transition-all shadow-[0_0_60px_-5px_rgba(243,115,53,0.7)] disabled:opacity-40 disabled:cursor-not-allowed ${
+                  voiceState === 'listening'
+                    ? 'bg-18-orange scale-105'
+                    : 'bg-18-orange hover:scale-105 active:scale-95'
+                }`}
+                aria-label={voiceState === 'listening' ? 'Stop listening' : 'Start voice input'}
+              >
+                <Mic className="text-white" size={36} />
+              </button>
             </div>
-          )}
+            <p className="mt-5 text-[10px] uppercase tracking-[0.2em] font-bold text-white/50">
+              {voiceState === 'listening'
+                ? 'Listening…'
+                : voiceState === 'unsupported'
+                ? 'Voice not supported'
+                : 'Tap to speak'}
+            </p>
+            {voiceState === 'idle' && !voiceTranscript && (
+              <p className="mt-2 text-xs text-white/40 max-w-xs text-center italic">
+                e.g. &ldquo;Paid 500 for groceries from HDFC&rdquo;
+              </p>
+            )}
+          </div>
 
           {voiceTranscript && (
-            <div className="mb-3 p-3 rounded-xl bg-18-bg border border-18-border">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">
-                Heard
+            <div className="mb-5 p-4 rounded-xl bg-18-bg border border-18-border">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">
+                You said
               </p>
               <p className="text-sm text-white italic">&ldquo;{voiceTranscript}&rdquo;</p>
               {voiceMissing.length > 0 && (
                 <p className="text-xs text-yellow-300/80 mt-2">
-                  Couldn&apos;t catch: <strong>{voiceMissing.join(', ')}</strong> — fill in above.
+                  Couldn&apos;t catch: <strong>{voiceMissing.join(', ')}</strong> — edit below.
                 </p>
               )}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-                if (feedback) setFeedback(null);
-              }}
-              placeholder={'500\nGroceries at DMart\nFood & Groceries\nHDFC'}
-              rows={7}
-              className="w-full min-h-[200px] p-4 bg-18-bg border border-18-border rounded-xl text-base font-mono text-white placeholder:text-gray-600 resize-none focus:outline-none focus:border-18-orange transition-colors"
-              autoCapitalize="sentences"
-              autoCorrect="on"
-              spellCheck={false}
-            />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">
+                {voiceTranscript ? 'Parsed · edit if needed' : 'Or type it manually'}
+              </p>
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  if (feedback) setFeedback(null);
+                }}
+                placeholder={'500\nGroceries at DMart\nFood & Groceries\nHDFC'}
+                rows={7}
+                className="w-full min-h-[180px] p-4 bg-18-bg border border-18-border rounded-xl text-base font-mono text-white placeholder:text-gray-600 resize-none focus:outline-none focus:border-18-orange transition-colors"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                spellCheck={false}
+              />
+            </div>
 
             {feedback && (
               <div

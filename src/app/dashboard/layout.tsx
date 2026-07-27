@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 import Link from 'next/link';
 import GlobalSearch from '@/components/GlobalSearch';
+import TourGuide from '@/components/TourGuide';
 import {
   Menu,
   X,
@@ -19,6 +20,7 @@ import {
   Zap,
   Sparkles,
   Flame,
+  Wallet,
 } from 'lucide-react';
 
 type NavSection = {
@@ -41,6 +43,7 @@ const navSections: NavSection[] = [
       { label: 'Quick Add',    href: '/dashboard/quick',       icon: Zap },
       { label: 'Expenses',     href: '/dashboard/expenses',    icon: IndianRupee },
       { label: 'Income',       href: '/dashboard/income',      icon: TrendingUp },
+      { label: 'Budgets',      href: '/dashboard/budgets',     icon: Wallet },
       { label: 'Investments',  href: '/dashboard/investments', icon: PiggyBank },
     ],
   },
@@ -104,7 +107,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   const displayName = user?.full_name || user?.email?.split('@')[0] || 'You';
-  const userIdShort = user?.id ? `#${user.id.slice(0, 8)}` : '';
+  const userSubtitle = user?.email || '';
 
   // Sidebar content — reused for desktop rail + mobile drawer.
   const SidebarContent = (
@@ -178,7 +181,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-white font-semibold text-sm truncate">{displayName}</p>
-            <p className="text-gray-500 text-[10px] truncate">{userIdShort}</p>
+            <p className="text-gray-500 text-[11px] truncate" title={userSubtitle}>{userSubtitle}</p>
           </div>
           <button
             onClick={handleLogout}
@@ -240,6 +243,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* Page content */}
         <main className="flex-1 px-4 md:px-6 pb-6 pt-2">{children}</main>
       </div>
+      <TourGuide />
     </div>
   );
 }

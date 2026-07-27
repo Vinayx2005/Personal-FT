@@ -4,11 +4,16 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User, Bank, Category, BankBalanceHistory } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Edit2, Trash2, X, History } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Plus, Edit2, Trash2, X, History, AlertTriangle } from 'lucide-react';
 import { logAction } from '@/lib/auditLog';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
   // net (income − expense) across all time, keyed by bank_id — for live balance display
   const [bankNet, setBankNet] = useState<Record<number, number>>({});
@@ -24,6 +29,8 @@ export default function SettingsPage() {
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
   const [newExpenseCategory, setNewExpenseCategory] = useState('');
   const [newIncomeCategory, setNewIncomeCategory] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
 
   const [editingBankId, setEditingBankId] = useState<number | null>(null);
   const [balanceChangeReason, setBalanceChangeReason] = useState('');
@@ -263,6 +270,45 @@ export default function SettingsPage() {
     }
   };
 
+  const startEditCategory = (c: Category) => {
+    setEditingCategoryId(c.id);
+    setEditingCategoryName(c.name);
+  };
+  const cancelEditCategory = () => {
+    setEditingCategoryId(null);
+    setEditingCategoryName('');
+  };
+  const handleUpdateCategory = async (id: number, type: 'expense' | 'income') => {
+    const name = editingCategoryName.trim();
+    if (!name) return;
+    const list = type === 'expense' ? expenseCategories : incomeCategories;
+    const prev = list.find((c) => c.id === id);
+    if (prev && prev.name === name) { cancelEditCategory(); return; }
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .update({ name })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      const updater = (arr: Category[]) => arr.map((c) => (c.id === id ? (data as Category) : c));
+      if (type === 'expense') setExpenseCategories(updater(expenseCategories));
+      else setIncomeCategories(updater(incomeCategories));
+      logAction({
+        action: 'update',
+        table_name: 'categories',
+        record_id: id,
+        description: `Renamed ${type} category: ${prev?.name || id} → ${name}`,
+        old_values: prev as any,
+        new_values: { name },
+      });
+      cancelEditCategory();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
   const handleDeleteBank = async (id: number) => {
     if (!confirm('Delete this bank?')) return;
 
@@ -282,6 +328,35 @@ export default function SettingsPage() {
       alert('Bank deleted');
     } catch (err: any) {
       alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') return;
+    setDeletingAccount(true);
+    try {
+      // The RPC wipes every row this user owns AND their auth.users row.
+      // If it hasn't been installed yet, fall back to a best-effort wipe
+      // via RLS-scoped deletes so at least the data is gone.
+      const { error: rpcErr } = await supabase.rpc('delete_own_account');
+      if (rpcErr) {
+        console.warn('delete_own_account RPC failed:', rpcErr.message);
+        const uid = currentUser?.id;
+        if (uid) {
+          await Promise.all([
+            supabase.from('transactions').delete().or(`created_by.eq.${uid},user_id.eq.${uid}`),
+            supabase.from('investments').delete().or(`created_by.eq.${uid},user_id.eq.${uid}`),
+            supabase.from('budgets').delete().eq('user_id', uid),
+            supabase.from('banks').delete().eq('user_id', uid),
+            supabase.from('categories').delete().eq('user_id', uid),
+          ]);
+        }
+      }
+      await supabase.auth.signOut();
+      router.replace('/');
+    } catch (err: any) {
+      alert(`Delete failed: ${err.message || err}`);
+      setDeletingAccount(false);
     }
   };
 
@@ -397,11 +472,11 @@ export default function SettingsPage() {
                 const current = opening + net;
                 return (
                 <div key={bank.id} className="pb-4 border-b border-18-border last:border-b-0">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-bold text-white">{bank.bank_name}</p>
+                  <div className="flex flex-wrap justify-between items-center gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-white truncate">{bank.bank_name}</p>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">
                       <div className="text-right">
                         <p className="text-xs text-18-dark-text uppercase font-semibold">Current</p>
                         <p className={`font-bold ${current < 0 ? 'text-red-300' : 'text-white'}`}>
@@ -422,7 +497,7 @@ export default function SettingsPage() {
                       </div>
                       <button
                         onClick={() => toggleBankHistory(bank.id)}
-                        className={`hover:text-18-orange ${
+                        className={`hover:text-18-orange p-2 -m-2 ${
                           historyOpenFor === bank.id ? 'text-18-orange' : 'text-18-dark-text'
                         }`}
                         title="Balance history"
@@ -431,14 +506,14 @@ export default function SettingsPage() {
                       </button>
                       <button
                         onClick={() => startEditBank(bank)}
-                        className="text-18-dark-text hover:text-18-orange"
+                        className="text-18-dark-text hover:text-18-orange p-2 -m-2"
                         title="Edit bank"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDeleteBank(bank.id)}
-                        className="text-red-400 hover:text-red-300"
+                        className="text-red-400 hover:text-red-300 p-2 -m-2"
                         title="Delete bank"
                       >
                         <Trash2 size={16} />
@@ -535,25 +610,72 @@ export default function SettingsPage() {
             </form>
             {items.length > 0 ? (
               <ul className="divide-y divide-18-border">
-                {items.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between py-2">
-                    <span className="text-white">
-                      {c.name}
-                      {c.is_default && (
-                        <span className="ml-2 text-xs text-18-dark-text uppercase tracking-wide">
-                          default
-                        </span>
+                {items.map((c) => {
+                  const isEditing = editingCategoryId === c.id;
+                  return (
+                    <li key={c.id} className="flex items-center justify-between gap-2 py-2">
+                      {isEditing ? (
+                        <>
+                          <input
+                            type="text"
+                            className="form-input flex-1 !py-1.5 text-sm"
+                            value={editingCategoryName}
+                            onChange={(e) => setEditingCategoryName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') { e.preventDefault(); handleUpdateCategory(c.id, type); }
+                              if (e.key === 'Escape') { e.preventDefault(); cancelEditCategory(); }
+                            }}
+                            autoFocus
+                          />
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleUpdateCategory(c.id, type)}
+                              disabled={!editingCategoryName.trim()}
+                              className="text-xs font-semibold text-18-orange hover:text-orange-400 px-2 disabled:opacity-40"
+                              title="Save"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={cancelEditCategory}
+                              className="text-white/50 hover:text-white p-1"
+                              title="Cancel"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-white min-w-0 truncate">
+                            {c.name}
+                            {c.is_default && (
+                              <span className="ml-2 text-xs text-18-dark-text uppercase tracking-wide">
+                                default
+                              </span>
+                            )}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => startEditCategory(c)}
+                              className="text-white/60 hover:text-18-orange p-2"
+                              title="Rename category"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(c.id, type)}
+                              className="text-red-400 hover:text-red-300 p-2"
+                              title="Delete category"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </>
                       )}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteCategory(c.id, type)}
-                      className="text-red-400 hover:text-red-300"
-                      title="Delete category"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-18-dark-text text-center py-6 text-sm">No categories yet</p>
@@ -561,6 +683,102 @@ export default function SettingsPage() {
           </div>
         ))}
       </div>
+
+      {/* ---------- DANGER ZONE ---------- */}
+      <div className="border-2 border-red-900/50 bg-red-950/20 rounded-2xl p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={18} />
+          <div>
+            <h2 className="text-lg font-bold text-red-300">Danger zone</h2>
+            <p className="text-sm text-white/60 mt-1">
+              Delete your account permanently. Every bank, category, transaction, budget, and investment tied to this account will be wiped. This action cannot be undone.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            setDeleteConfirmText('');
+            setShowDeleteAccount(true);
+          }}
+          className="inline-flex items-center gap-2 bg-red-500/20 border border-red-500/50 text-red-300 hover:bg-red-500/30 rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+        >
+          <Trash2 size={14} />
+          Delete my account
+        </button>
+      </div>
+
+      {showDeleteAccount && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm"
+          onClick={() => !deletingAccount && setShowDeleteAccount(false)}
+        >
+          <div
+            className="bg-18-surface border-2 border-red-900/60 rounded-2xl max-w-md w-full p-6 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.9)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center shrink-0">
+                <AlertTriangle className="text-red-400" size={20} />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-black text-white">Delete your account?</h3>
+                <p className="text-xs text-white/50 mt-0.5">This is irreversible.</p>
+              </div>
+              {!deletingAccount && (
+                <button
+                  onClick={() => setShowDeleteAccount(false)}
+                  className="ml-auto text-white/50 hover:text-white p-1"
+                  aria-label="Cancel"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            <div className="bg-18-bg/60 border border-red-900/40 rounded-xl p-4 mb-4">
+              <p className="text-sm text-white/80 font-semibold mb-2">
+                This will permanently wipe:
+              </p>
+              <ul className="text-sm text-white/70 space-y-1 list-disc pl-5">
+                <li>All banks, categories, and their history</li>
+                <li>Every transaction (income + expenses)</li>
+                <li>Budgets, investments, and audit logs</li>
+                <li>Your login — you can&apos;t recover the account</li>
+              </ul>
+            </div>
+
+            <label className="block text-xs uppercase tracking-widest font-bold text-white/50 mb-2">
+              Type <span className="text-red-300">DELETE</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              autoFocus
+              disabled={deletingAccount}
+              className="form-input mb-5"
+            />
+
+            <div className="flex flex-col-reverse sm:flex-row gap-3">
+              <button
+                onClick={() => setShowDeleteAccount(false)}
+                disabled={deletingAccount}
+                className="sm:flex-1 py-3.5 rounded-full bg-18-surface border border-18-border text-white font-semibold text-base hover:bg-18-surface-2 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount || deleteConfirmText !== 'DELETE'}
+                className="sm:flex-1 py-3.5 rounded-full bg-red-500 text-white font-bold text-base hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {deletingAccount ? 'Deleting…' : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

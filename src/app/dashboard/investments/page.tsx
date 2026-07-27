@@ -178,13 +178,13 @@ export default function InvestmentsPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div className="card !bg-18-orange/15 !border-18-orange/40">
           <p className="text-xs font-bold uppercase text-white">Total</p>
-          <h3 className="text-lg font-bold text-white">{formatCurrency(total)}</h3>
+          <h3 className="text-base md:text-lg font-bold text-white break-words">{formatCurrency(total)}</h3>
           <p className="text-xs text-white/70 mt-1">{investments.length} item{investments.length !== 1 ? 's' : ''}</p>
         </div>
         {byType.map((b) => (
           <div key={b.type} className="card">
             <p className="text-xs font-bold uppercase text-18-dark-text">{b.label}</p>
-            <h3 className="text-lg font-bold text-white">{formatCurrency(b.total)}</h3>
+            <h3 className="text-base md:text-lg font-bold text-white break-words">{formatCurrency(b.total)}</h3>
             <p className="text-xs text-18-dark-text mt-1">{b.count} item{b.count !== 1 ? 's' : ''}</p>
           </div>
         ))}

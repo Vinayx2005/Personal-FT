@@ -161,8 +161,12 @@ tbody tr:hover   { @apply bg-18-surface-2; }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .btn { @apply px-3 py-2 text-xs; }
-  h1   { @apply text-xl; }
-  h2   { @apply text-lg; }
+  .btn { @apply px-3.5 py-2.5 text-sm; }
   .card { @apply p-4; }
+}
+/* Larger tap targets on touch devices — 40px min per Apple/Material guidance */
+@media (hover: none) and (pointer: coarse) {
+  button, [role="button"], a.btn, .btn {
+    min-height: 40px;
+  }
 }

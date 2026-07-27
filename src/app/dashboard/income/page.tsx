@@ -9,6 +9,7 @@ import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@
 import { logAction } from '@/lib/auditLog';
 import CategorySelect from '@/components/CategorySelect';
 import DateRangePicker from '@/components/DateRangePicker';
+import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { DateRange, defaultRange } from '@/lib/dateRanges';
 import { groupByMonth } from '@/lib/utils';
 import { useScrollToHash } from '@/lib/scrollToHash';
@@ -32,9 +33,7 @@ export default function IncomePage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [range, setRange] = useState<DateRange>(defaultRange());
   const [categoryFilter, setCategoryFilter] = useState<Set<number>>(new Set());
-  const [searchText, setSearchText] = useState('');
-  const [minAmount, setMinAmount] = useState<string>('');
-  const [maxAmount, setMaxAmount] = useState<string>('');
+  const [bankFilter, setBankFilter] = useState<Set<number>>(new Set());
   const [showTransfer, setShowTransfer] = useState(false);
   const [transferForm, setTransferForm] = useState({
     from_bank_id: 0,
@@ -45,7 +44,6 @@ export default function IncomePage() {
   });
   const [transferring, setTransferring] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [activeTab, setActiveTab] = useState<'all' | 'sales' | 'refunds' | 'self_transfer'>('all');
 
   const [form, setForm] = useState<IncomeForm>({
     description: '',
@@ -148,11 +146,6 @@ export default function IncomePage() {
             to: payload.transaction_date > range.to ? payload.transaction_date : range.to,
           });
         }
-        // If picked category is Self Transfer / Refund / Sales, jump to that tab
-        const catName = (categories.find((c) => c.id === payload.category_id)?.name || '').toLowerCase();
-        if (catName === 'self transfer') setActiveTab('self_transfer');
-        else if (catName === 'refund' || catName === 'refunds') setActiveTab('refunds');
-        else if (catName === 'sales') setActiveTab('sales');
         logAction({
           action: 'create',
           table_name: 'transactions',
@@ -292,14 +285,13 @@ export default function IncomePage() {
         description: `Self transfer ${formatCurrency(amount)}: ${fromBank?.bank_name} → ${toBank?.bank_name}`,
         new_values: { amount, from: fromBank?.bank_name, to: toBank?.bank_name, transfer_group_id: transferGroupId },
       });
-      // Auto-widen the date range to include this transfer's date, and switch to the Self Transfers tab
+      // Auto-widen the date range to include this transfer's date
       if (transaction_date < range.from || transaction_date > range.to) {
         setRange({
           from: transaction_date < range.from ? transaction_date : range.from,
           to: transaction_date > range.to ? transaction_date : range.to,
         });
       }
-      setActiveTab('self_transfer');
       setTransferForm({ from_bank_id: 0, to_bank_id: 0, amount: 0, transaction_date: new Date().toISOString().split('T')[0], notes: '' });
       setShowTransfer(false);
       alert('Transfer recorded on both accounts.');
@@ -402,17 +394,9 @@ export default function IncomePage() {
   const inRangeAll = income.filter(
     (i) => i.transaction_date >= range.from && i.transaction_date <= range.to
   );
-  const q = searchText.trim().toLowerCase();
-  const minA = minAmount.trim() ? parseFloat(minAmount) : null;
-  const maxA = maxAmount.trim() ? parseFloat(maxAmount) : null;
   const inRange = inRangeAll.filter((i) => {
     if (categoryFilter.size > 0 && !categoryFilter.has(i.category_id)) return false;
-    if (q) {
-      const desc = (i.description || '').toLowerCase();
-      if (!desc.includes(q)) return false;
-    }
-    if (minA !== null && !isNaN(minA) && (i.amount || 0) < minA) return false;
-    if (maxA !== null && !isNaN(maxA) && (i.amount || 0) > maxA) return false;
+    if (bankFilter.size > 0 && !bankFilter.has(i.bank_id)) return false;
     return true;
   });
 
@@ -423,31 +407,16 @@ export default function IncomePage() {
     const n = catNameOf(i.category_id);
     return n.includes('self transfer') || n.includes('self-transfer');
   };
-  const isSales = (i: Transaction): boolean => catNameOf(i.category_id) === 'sales';
   const isRefund = (i: Transaction): boolean => {
     const n = catNameOf(i.category_id);
     return n === 'refund' || n === 'refunds';
   };
-  const tabFilter = (i: Transaction): boolean => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'self_transfer') return isSelfTransfer(i);
-    if (activeTab === 'sales') return isSales(i);
-    if (activeTab === 'refunds') return isRefund(i);
-    return true;
-  };
-  const filteredInRange = inRange.filter(tabFilter);
-  const grouped = groupByMonth(filteredInRange, (i) => i.transaction_date);
+  const grouped = groupByMonth(inRange, (i) => i.transaction_date);
 
   // Real income excludes self-transfers and refunds
   const realIncome = inRange.filter((i) => !isSelfTransfer(i) && !isRefund(i));
   const totalIncome = realIncome.reduce((sum, i) => sum + i.amount, 0);
   const realTxCount = realIncome.length;
-  const tabCounts = {
-    all: inRange.length,
-    sales: inRange.filter(isSales).length,
-    refunds: inRange.filter(isRefund).length,
-    self_transfer: inRange.filter(isSelfTransfer).length,
-  };
 
   return (
     <div>
@@ -612,85 +581,6 @@ export default function IncomePage() {
         </div>
       )}
 
-      {/* Filters (Item 8) */}
-      <div className="mb-4 card !p-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
-          <input
-            type="text"
-            placeholder="Search description or payer…"
-            className="form-input md:col-span-2 !py-2 text-sm"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="Min amount"
-            className="form-input !py-2 text-sm"
-            value={minAmount}
-            onChange={(e) => setMinAmount(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder="Max amount"
-            className="form-input !py-2 text-sm"
-            value={maxAmount}
-            onChange={(e) => setMaxAmount(e.target.value)}
-          />
-        </div>
-        <details className="mt-1">
-          <summary className="cursor-pointer text-xs font-semibold text-white flex items-center justify-between">
-            <span>
-              Filter by category
-              {categoryFilter.size > 0 && (
-                <span className="ml-2 text-xs bg-18-orange text-white rounded-full px-2 py-0.5">
-                  {categoryFilter.size} selected
-                </span>
-              )}
-            </span>
-            {(categoryFilter.size > 0 || searchText || minAmount || maxAmount) && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  setCategoryFilter(new Set());
-                  setSearchText('');
-                  setMinAmount('');
-                  setMaxAmount('');
-                }}
-                className="text-xs text-18-orange hover:underline"
-              >
-                Clear all
-              </button>
-            )}
-          </summary>
-          <div className="p-3 border-t border-18-border mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-64 overflow-y-auto">
-            {categories.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => {
-              const checked = categoryFilter.has(c.id);
-              return (
-                <label
-                  key={c.id}
-                  className={`flex items-center gap-2 p-2 rounded text-xs cursor-pointer border ${
-                    checked ? 'bg-18-orange/10 border-18-orange' : 'bg-18-surface border-18-border hover:border-18-dark-text'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    className="h-3.5 w-3.5 accent-18-orange"
-                    checked={checked}
-                    onChange={(e) => {
-                      const next = new Set(categoryFilter);
-                      if (e.target.checked) next.add(c.id);
-                      else next.delete(c.id);
-                      setCategoryFilter(next);
-                    }}
-                  />
-                  <span className="truncate">{c.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        </details>
-      </div>
-
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="card bg-green-900/20 border-green-800/40">
@@ -703,37 +593,34 @@ export default function IncomePage() {
         </div>
       </div>
 
-      {/* Category tabs */}
-      <div className="flex gap-2 mb-6 border-b border-18-border">
-        {(
-          [
-            { key: 'all', label: 'All' },
-            { key: 'sales', label: 'Sales' },
-            { key: 'refunds', label: 'Refunds' },
-            { key: 'self_transfer', label: 'Self Transfers' },
-          ] as const
-        ).map((t) => (
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <MultiSelectFilter
+          label="Category"
+          options={categories.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ value: c.id, label: c.name }))}
+          selected={categoryFilter}
+          onChange={setCategoryFilter}
+        />
+        <MultiSelectFilter
+          label="Bank"
+          options={banks.slice().sort((a, b) => a.bank_name.localeCompare(b.bank_name)).map((b) => ({ value: b.id, label: b.bank_name }))}
+          selected={bankFilter}
+          onChange={setBankFilter}
+        />
+        {(categoryFilter.size > 0 || bankFilter.size > 0) && (
           <button
-            key={t.key}
-            onClick={() => {
-              setActiveTab(t.key);
-              setSelectedIds(new Set());
-            }}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              activeTab === t.key
-                ? 'border-18-orange text-18-orange'
-                : 'border-transparent text-18-dark-text hover:text-white'
-            }`}
+            type="button"
+            onClick={() => { setCategoryFilter(new Set()); setBankFilter(new Set()); }}
+            className="text-xs text-18-orange hover:underline ml-1"
           >
-            {t.label}
-            <span className="ml-2 text-xs text-18-dark-text">({tabCounts[t.key]})</span>
+            Clear filters
           </button>
-        ))}
+        )}
       </div>
 
       {/* Form (modal) */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center overflow-y-auto p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}>
           <div className="card bg-18-surface border-18-border w-full max-w-3xl my-8 shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-white">
