@@ -112,8 +112,8 @@ function InstructionsModal({
             icon: <Share2 size={14} className="text-18-orange" />,
             text: (
               <>
-                Tap the <strong className="text-white">Share</strong> button in
-                Safari&apos;s bottom bar
+                Tap the <strong className="text-white">Share</strong> button
+                (bottom of Safari, top-right in Chrome)
               </>
             ),
           },

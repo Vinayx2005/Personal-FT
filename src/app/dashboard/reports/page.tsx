@@ -79,7 +79,9 @@ export default function ReportsPage() {
 
         transactionsData?.forEach((t: Transaction) => {
           if (isExcluded(t)) return;
-          const date = new Date(t.transaction_date);
+          // Use a local-timezone parse — `new Date("YYYY-MM-DD")` is UTC.
+          const [y, m] = t.transaction_date.slice(0, 10).split('-').map(Number);
+          const date = new Date(y, m - 1, 1);
           const monthKey = `${date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
 
           if (!monthlyData[monthKey]) {
@@ -93,12 +95,15 @@ export default function ReportsPage() {
           }
         });
 
-        const pnl: PnLData[] = Object.entries(monthlyData).map(([month, data]) => ({
-          month,
-          revenue: data.revenue,
-          expenses: data.expenses,
-          profit: data.revenue - data.expenses,
-        }));
+        const pnl: PnLData[] = Object.entries(monthlyData)
+          .map(([month, data]) => ({
+            month,
+            revenue: data.revenue,
+            expenses: data.expenses,
+            profit: data.revenue - data.expenses,
+          }))
+          // Sort chronologically so PnL table / charts read left-to-right.
+          .sort((a, b) => new Date('01 ' + a.month).getTime() - new Date('01 ' + b.month).getTime());
 
         const categorySpend: { [key: string]: number } = {};
         transactionsData?.forEach((t: Transaction) => {

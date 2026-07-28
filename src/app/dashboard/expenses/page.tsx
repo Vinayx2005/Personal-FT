@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Category, Bank } from '@/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
 import { Plus, Edit2, Trash2, X, Upload, Download, Paperclip, FileText } from 'lucide-react';
 import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
 import { logAction } from '@/lib/auditLog';
@@ -36,6 +36,7 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [range, setRange] = useState<DateRange>(defaultRange());
+  const [submitting, setSubmitting] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<Set<number>>(new Set());
   const [bankFilter, setBankFilter] = useState<Set<number>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -50,7 +51,7 @@ export default function ExpensesPage() {
     amount: 0,
     bank_id: 0,
     category_id: 0,
-    transaction_date: new Date().toISOString().split('T')[0],
+    transaction_date: formatDateISO(new Date()),
     notes: '',
     receipt_url: null,
   });
@@ -97,6 +98,7 @@ export default function ExpensesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // Guard against double-taps creating duplicate rows
 
     if (!form.amount || !form.category_id || !form.bank_id) {
       alert('Please fill all required fields');
@@ -105,6 +107,7 @@ export default function ExpensesPage() {
 
     const payload = { ...form };
 
+    setSubmitting(true);
     try {
       if (editingId) {
         const prev = expenses.find((e) => e.id === editingId);
@@ -159,6 +162,8 @@ export default function ExpensesPage() {
       setShowForm(false);
     } catch (err: any) {
       alert(`Error: ${err.message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -401,7 +406,7 @@ export default function ExpensesPage() {
       amount: 0,
       bank_id: 0,
       category_id: 0,
-      transaction_date: new Date().toISOString().split('T')[0],
+      transaction_date: formatDateISO(new Date()),
       notes: '',
       receipt_url: null,
     });
@@ -699,8 +704,12 @@ export default function ExpensesPage() {
             </div>
 
             <div className="flex gap-3">
-              <button type="submit" className="btn btn-primary">
-                {editingId ? 'Update Expense' : 'Add Expense'}
+              <button
+                type="submit"
+                className="btn btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={submitting}
+              >
+                {submitting ? 'Saving…' : editingId ? 'Update Expense' : 'Add Expense'}
               </button>
               <button
                 type="button"

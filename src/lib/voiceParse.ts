@@ -51,13 +51,18 @@ export function parseVoiceInput(
   const missing: string[] = [];
 
   // ---------- amount ----------
-  // Prefer numbers explicitly next to rupees/rs/inr.
-  // Fallback: first 2–7 digit number in the sentence.
+  // Prefer numbers explicitly next to rupees / rs / inr / paid / spent.
+  // The plain digit fallback used to catch times of day and dates
+  // ("12/03/26" → 12, "lunch at 12" → 12), so tighten to money-adjacent
+  // hints only. If nothing matches, mark amount missing and let the user
+  // fill the parsed textarea.
+  const cleanNumber = (raw: string) =>
+    parseFloat(raw.replace(/,/g, '').replace(/^0+(?=\d)/, ''));
   const moneyMatch =
-    text.match(/(?:rs\.?|rupees?|inr)\s*(\d+(?:[.,]\d+)?)/) ||
-    text.match(/(\d+(?:[.,]\d+)?)\s*(?:rs\.?|rupees?|inr)/) ||
-    text.match(/\b(\d{2,7}(?:[.,]\d+)?)\b/);
-  const amount = moneyMatch ? parseFloat(moneyMatch[1].replace(/,/g, '')) : null;
+    text.match(/(?:rs\.?|rupees?|inr|₹)\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?)/) ||
+    text.match(/([0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?)\s*(?:rs\.?|rupees?|inr|₹)/) ||
+    text.match(/\b(?:paid|spent|for|of|costs?|cost)\s+([0-9]+(?:,[0-9]+)*(?:\.[0-9]+)?)\b/);
+  const amount = moneyMatch ? cleanNumber(moneyMatch[1]) : null;
   if (amount === null || isNaN(amount) || amount <= 0) missing.push('amount');
 
   // ---------- bank ----------

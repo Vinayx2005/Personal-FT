@@ -85,7 +85,15 @@ export const buildImportRows = (
         return;
       }
     }
-    const amount = parseFloat(row.amount);
+    // Strip commas ("1,000.50") so parseFloat doesn't stop at the first
+    // comma. Reject scientific notation ("1e5" → 100000) and any non-numeric
+    // shape — Excel exports sometimes contain both.
+    const rawAmt = String(row.amount).trim().replace(/,/g, '');
+    if (!/^-?\d+(\.\d+)?$/.test(rawAmt)) {
+      errors.push({ line, message: `invalid amount "${row.amount}"` });
+      return;
+    }
+    const amount = parseFloat(rawAmt);
     if (isNaN(amount) || amount <= 0) {
       errors.push({ line, message: `invalid amount "${row.amount}"` });
       return;

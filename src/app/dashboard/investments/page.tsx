@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Bank, Investment, InvestmentType, INVESTMENT_TYPE_LABELS } from '@/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
 import { Plus, Trash2, X } from 'lucide-react';
 import { logAction } from '@/lib/auditLog';
 
@@ -21,7 +21,7 @@ export default function InvestmentsPage() {
     type: 'fd' as InvestmentType,
     amount: 0,
     source_bank_id: 0,
-    start_date: new Date().toISOString().split('T')[0],
+    start_date: formatDateISO(new Date()),
     maturity_date: '',
     interest_rate: 0,
     notes: '',
@@ -59,7 +59,7 @@ export default function InvestmentsPage() {
       type: 'fd',
       amount: 0,
       source_bank_id: 0,
-      start_date: new Date().toISOString().split('T')[0],
+      start_date: formatDateISO(new Date()),
       maturity_date: '',
       interest_rate: 0,
       notes: '',

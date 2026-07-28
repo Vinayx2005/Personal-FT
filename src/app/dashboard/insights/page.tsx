@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Category } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, parseLocalDate } from '@/lib/utils';
 import { fetchCurrentStreak } from '@/lib/streak';
 import {
   Flame,
@@ -41,7 +41,7 @@ const startOfWeek = (d = new Date()): Date => {
 const sumSpend = (txs: Transaction[], catNameById: Map<number, string>, from: Date, to: Date): number => {
   return txs.reduce((acc, t) => {
     if (t.transaction_type !== 'expense') return acc;
-    const d = new Date(t.transaction_date);
+    const d = parseLocalDate(t.transaction_date);
     if (d < from || d > to) return acc;
     const catName = (catNameById.get(t.category_id) || '').toLowerCase();
     const isTransfer = !!t.transfer_group_id || catName.includes('self transfer') || catName.includes('self-transfer');
@@ -200,7 +200,7 @@ export default function InsightsPage() {
   const thisMonthTxs = useMemo(
     () =>
       txs.filter((t) => {
-        const d = new Date(t.transaction_date);
+        const d = parseLocalDate(t.transaction_date);
         return d >= startOfThisMonth && d <= endOfThisMonth;
       }),
     [txs, startOfThisMonth.getTime(), endOfThisMonth.getTime()]
@@ -231,7 +231,7 @@ export default function InsightsPage() {
       if (t.transaction_type !== 'expense') return;
       const catName = (catNameById.get(t.category_id) || '').toLowerCase();
       if (catName.includes('self transfer') || catName.includes('self-transfer')) return;
-      const d = new Date(t.transaction_date);
+      const d = parseLocalDate(t.transaction_date);
       if (d >= startOfThisMonth && d <= endOfThisMonth) {
         thisByCat.set(t.category_id, (thisByCat.get(t.category_id) || 0) + t.amount);
       } else if (d >= startOfLastMonth && d <= endOfLastMonth) {

@@ -32,9 +32,18 @@ export default function CategorySelect({
     if (!name) return;
     setSaving(true);
     try {
+      // Fall back to the auth session if the parent didn't pass a user id —
+      // categories.user_id is NOT NULL, so a missing id would blow up the
+      // insert with a confusing constraint error.
+      let uid = currentUserId ?? null;
+      if (!uid) {
+        const { data: { user } } = await supabase.auth.getUser();
+        uid = user?.id ?? null;
+      }
+      if (!uid) throw new Error('You must be signed in to add a category');
       const { data, error } = await supabase
         .from('categories')
-        .insert({ type, name, is_default: false, user_id: currentUserId })
+        .insert({ type, name, is_default: false, user_id: uid })
         .select()
         .single();
       if (error) throw error;

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Category, Bank } from '@/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
 import { Plus, Edit2, Trash2, X, Upload, Download, ArrowRightLeft } from 'lucide-react';
 import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
 import { logAction } from '@/lib/auditLog';
@@ -32,6 +32,7 @@ export default function IncomePage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [range, setRange] = useState<DateRange>(defaultRange());
+  const [submitting, setSubmitting] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<Set<number>>(new Set());
   const [bankFilter, setBankFilter] = useState<Set<number>>(new Set());
   const [showTransfer, setShowTransfer] = useState(false);
@@ -39,7 +40,7 @@ export default function IncomePage() {
     from_bank_id: 0,
     to_bank_id: 0,
     amount: 0,
-    transaction_date: new Date().toISOString().split('T')[0],
+    transaction_date: formatDateISO(new Date()),
     notes: '',
   });
   const [transferring, setTransferring] = useState(false);
@@ -50,7 +51,7 @@ export default function IncomePage() {
     amount: 0,
     bank_id: 0,
     category_id: 0,
-    transaction_date: new Date().toISOString().split('T')[0],
+    transaction_date: formatDateISO(new Date()),
     notes: '',
   });
 
@@ -93,6 +94,7 @@ export default function IncomePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return; // Guard against double-taps creating duplicate rows
 
     if (!form.amount || !form.category_id || !form.bank_id) {
       alert('Please fill all required fields');
@@ -101,6 +103,7 @@ export default function IncomePage() {
 
     const payload = { ...form };
 
+    setSubmitting(true);
     try {
       if (editingId) {
         const prev = income.find((i) => i.id === editingId);
@@ -160,6 +163,8 @@ export default function IncomePage() {
       setShowForm(false);
     } catch (err: any) {
       alert(`Error: ${err.message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -292,7 +297,7 @@ export default function IncomePage() {
           to: transaction_date > range.to ? transaction_date : range.to,
         });
       }
-      setTransferForm({ from_bank_id: 0, to_bank_id: 0, amount: 0, transaction_date: new Date().toISOString().split('T')[0], notes: '' });
+      setTransferForm({ from_bank_id: 0, to_bank_id: 0, amount: 0, transaction_date: formatDateISO(new Date()), notes: '' });
       setShowTransfer(false);
       alert('Transfer recorded on both accounts.');
     } catch (err: any) {
@@ -377,7 +382,7 @@ export default function IncomePage() {
       amount: 0,
       bank_id: 0,
       category_id: 0,
-      transaction_date: new Date().toISOString().split('T')[0],
+      transaction_date: formatDateISO(new Date()),
       notes: '',
     });
     setEditingId(null);
@@ -712,8 +717,12 @@ export default function IncomePage() {
             </div>
 
             <div className="flex gap-3">
-              <button type="submit" className="btn btn-primary">
-                {editingId ? 'Update Income' : 'Add Income'}
+              <button
+                type="submit"
+                className="btn btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={submitting}
+              >
+                {submitting ? 'Saving…' : editingId ? 'Update Income' : 'Add Income'}
               </button>
               <button
                 type="button"

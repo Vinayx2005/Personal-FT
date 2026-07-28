@@ -97,7 +97,17 @@ export default function DateRangePicker({ value, onChange }: Props) {
                   type="date"
                   className="form-input"
                   value={value.from}
-                  onChange={(e) => onChange({ ...value, from: e.target.value })}
+                  onChange={(e) => {
+                    const from = e.target.value;
+                    // If the user picked a From later than To, swap them so
+                    // downstream `.gte / .lte` filters don't quietly return
+                    // an empty set.
+                    if (from && value.to && from > value.to) {
+                      onChange({ from: value.to, to: from });
+                    } else {
+                      onChange({ ...value, from });
+                    }
+                  }}
                 />
               </div>
               <div>
@@ -106,7 +116,14 @@ export default function DateRangePicker({ value, onChange }: Props) {
                   type="date"
                   className="form-input"
                   value={value.to}
-                  onChange={(e) => onChange({ ...value, to: e.target.value })}
+                  onChange={(e) => {
+                    const to = e.target.value;
+                    if (to && value.from && to < value.from) {
+                      onChange({ from: to, to: value.from });
+                    } else {
+                      onChange({ ...value, to });
+                    }
+                  }}
                 />
               </div>
               <button

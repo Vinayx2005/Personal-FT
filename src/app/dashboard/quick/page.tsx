@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateISO } from '@/lib/utils';
 import { logAction } from '@/lib/auditLog';
 import { fetchCurrentStreak } from '@/lib/streak';
 import { parseVoiceInput, toQuickAddText } from '@/lib/voiceParse';
@@ -84,9 +84,15 @@ export default function QuickAddPage() {
       );
       let createdCategory = false;
       if (!category) {
+        // Upsert — if another tab created this same category between our
+        // SELECT and INSERT, we still get its id back instead of a UNIQUE
+        // violation that would fail the whole quick-add.
         const { data: newCat, error: createErr } = await supabase
           .from('categories')
-          .insert({ type: 'expense', name: categoryName.trim(), is_default: false, user_id: userId })
+          .upsert(
+            { type: 'expense', name: categoryName.trim(), is_default: false, user_id: userId },
+            { onConflict: 'user_id,type,name' }
+          )
           .select('id, name')
           .single();
         if (createErr) throw createErr;
@@ -121,7 +127,8 @@ export default function QuickAddPage() {
       }
       const bank = matches[0];
 
-      const today = new Date().toISOString().slice(0, 10);
+      // Use the user's LOCAL date so a 00:30 IST log doesn't file as yesterday.
+      const today = formatDateISO(new Date());
       const { data: inserted, error: insErr } = await supabase
         .from('transactions')
         .insert({

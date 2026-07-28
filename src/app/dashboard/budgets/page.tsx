@@ -156,13 +156,17 @@ export default function BudgetsPage() {
     }
   };
 
-  // Reload rows when the month changes. Also cancel any pending saves from
-  // the previous month so they don't accidentally write against the new one.
+  // Reload rows when the month changes. Flush any pending saves for the
+  // OLD month first so the user's last-typed value isn't dropped, then clear
+  // the timers so they can't accidentally write against the new month.
   useEffect(() => {
     if (!authChecked) return;
+    const pendingIds = Array.from(saveTimers.current.keys());
     saveTimers.current.forEach((t) => clearTimeout(t));
     saveTimers.current.clear();
-    loadRows();
+    Promise.all(pendingIds.map((cid) => persistRow(cid)))
+      .catch(() => {})
+      .finally(() => loadRows());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, month]);
 
@@ -264,6 +268,13 @@ export default function BudgetsPage() {
     if (!userId) return;
     setCopying(true);
     setFeedback(null);
+    // Flush any in-flight debounced saves first — otherwise this month's
+    // budget-set might miss rows the user JUST typed, and the copy would
+    // hit a UNIQUE(user_id, category_id, month) violation for them.
+    const pendingIds = Array.from(saveTimers.current.keys());
+    saveTimers.current.forEach((t) => clearTimeout(t));
+    saveTimers.current.clear();
+    await Promise.all(pendingIds.map((cid) => persistRow(cid))).catch(() => {});
     try {
       const last = prevMonthISO(month);
       const { data: lastBudgets, error } = await supabase

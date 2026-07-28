@@ -94,6 +94,10 @@ export default function SettingsPage() {
   const handleSaveBank = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!currentUser?.id) {
+      alert('Session expired — please reload.');
+      return;
+    }
     if (!bankForm.bank_name.trim()) {
       alert('Bank name is required');
       return;
@@ -247,10 +251,29 @@ export default function SettingsPage() {
   };
 
   const handleDeleteCategory = async (id: number, type: 'expense' | 'income') => {
-    if (!confirm('Delete this category? Existing transactions using it will retain the reference.')) return;
+    const list = type === 'expense' ? expenseCategories : incomeCategories;
+    const prev = list.find((c) => c.id === id);
+    // Check for referencing transactions first — the FK has no ON DELETE
+    // action, so a DELETE while any transaction points here throws a raw
+    // Postgres foreign-key error at the user.
     try {
-      const list = type === 'expense' ? expenseCategories : incomeCategories;
-      const prev = list.find((c) => c.id === id);
+      const { count, error: countErr } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .eq('category_id', id);
+      if (countErr) throw countErr;
+      if ((count ?? 0) > 0) {
+        alert(
+          `Can't delete "${prev?.name}" — ${count} transaction${count === 1 ? '' : 's'} still use this category. Move them to another category first, then try again.`
+        );
+        return;
+      }
+    } catch (err: any) {
+      alert(`Error checking category usage: ${err.message}`);
+      return;
+    }
+    if (!confirm(`Delete "${prev?.name}"?`)) return;
+    try {
       const { error } = await supabase.from('categories').delete().eq('id', id);
       if (error) throw error;
       if (type === 'expense') {
@@ -343,12 +366,16 @@ export default function SettingsPage() {
         console.warn('delete_own_account RPC failed:', rpcErr.message);
         const uid = currentUser?.id;
         if (uid) {
+          // Use the actual column names — transactions/investments use
+          // `created_by`, bank_balance_history uses `changed_by`.
           await Promise.all([
-            supabase.from('transactions').delete().or(`created_by.eq.${uid},user_id.eq.${uid}`),
-            supabase.from('investments').delete().or(`created_by.eq.${uid},user_id.eq.${uid}`),
+            supabase.from('transactions').delete().eq('created_by', uid),
+            supabase.from('investments').delete().eq('created_by', uid),
+            supabase.from('bank_balance_history').delete().eq('changed_by', uid),
             supabase.from('budgets').delete().eq('user_id', uid),
             supabase.from('banks').delete().eq('user_id', uid),
             supabase.from('categories').delete().eq('user_id', uid),
+            supabase.from('audit_log').delete().eq('user_id', uid),
           ]);
         }
       }

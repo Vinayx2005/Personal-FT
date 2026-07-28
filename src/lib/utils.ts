@@ -31,6 +31,14 @@ export const formatDate = (date: string | Date): string => {
   return `${dd}-${mm}-${yyyy}`;
 };
 
+// Parse a "YYYY-MM-DD" string as a LOCAL midnight Date. `new Date(raw)` treats
+// the string as UTC and shifts by the viewer's offset — mis-filing dates near
+// month/day boundaries for anyone outside UTC.
+export const parseLocalDate = (raw: string): Date => {
+  const [y, m, d] = raw.slice(0, 10).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
 // DB-safe format: YYYY-MM-DD. Use for anything written to a Postgres date column.
 export const formatDateISO = (date: Date): string => {
   const year = date.getFullYear();
@@ -210,8 +218,11 @@ export function groupByMonth<T>(
   for (const item of items) {
     const raw = getDate(item);
     if (!raw) continue;
-    const d = new Date(raw);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    // The raw value is a YYYY-MM-DD string from a Postgres date column.
+    // Slicing the string keeps the intended calendar date — parsing via
+    // `new Date(raw)` treats it as UTC midnight and shifts by the viewer's
+    // offset, mis-filing month-boundary transactions in any TZ != UTC.
+    const key = raw.slice(0, 7);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(item);
   }

@@ -28,7 +28,7 @@ begin
   begin delete from public.bank_balance_history  where changed_by = uid; exception when others then null; end;
   begin delete from public.banks                 where user_id    = uid; exception when others then null; end;
   begin delete from public.categories            where user_id    = uid; exception when others then null; end;
-  begin delete from public.audit_logs            where user_id    = uid; exception when others then null; end;
+  begin delete from public.audit_log             where user_id    = uid; exception when others then null; end;
   begin delete from public.users                 where id         = uid; exception when others then null; end;
 
   -- Finally the auth row itself — kills the session everywhere.

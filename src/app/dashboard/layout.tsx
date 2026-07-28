@@ -78,13 +78,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           .eq('id', authUser.id)
           .single();
 
-        setUser(
-          (userData as User) || ({
-            id: authUser.id,
-            email: authUser.email || '',
-            full_name: authUser.email || '',
-          } as User)
-        );
+        // Merge the profile row (for full_name if set) with the auth session
+        // as the source of truth for the email. Older accounts have a stale
+        // placeholder email in the users table from an early seed.
+        const profile = (userData as User) || null;
+        const authMeta = (authUser.user_metadata || {}) as { full_name?: string; name?: string };
+        setUser({
+          id: authUser.id,
+          email: authUser.email || profile?.email || '',
+          full_name:
+            profile?.full_name?.trim() ||
+            authMeta.full_name ||
+            authMeta.name ||
+            (authUser.email ? authUser.email.split('@')[0] : ''),
+          created_at: profile?.created_at || '',
+          updated_at: profile?.updated_at || '',
+        });
         setLoading(false);
       } catch {
         router.push('/');
