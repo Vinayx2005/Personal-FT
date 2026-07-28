@@ -7,8 +7,10 @@ import { ArrowRight, X } from 'lucide-react';
 
 // Bump the version suffix if the tour changes materially — existing users
 // will then see the refreshed tour once.
-const STORAGE_STEP = 'pft_tour_step_v1';
-const STORAGE_DONE = 'pft_tour_done_v1';
+// Keys are scoped by user id so a browser that ran the tour for User A
+// still shows the tour when User B signs in on the same browser.
+const stepKey = (uid: string) => `pft_tour_step_v1_${uid}`;
+const doneKey = (uid: string) => `pft_tour_done_v1_${uid}`;
 
 interface Step {
   // The pathname where this step's target element lives. If the user isn't
@@ -87,23 +89,30 @@ export default function TourGuide() {
   const [active, setActive] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
   const [rect, setRect] = useState<TargetRect | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // ---- Bootstrap: decide whether to run the tour ----
   useEffect(() => {
     let cancelled = false;
     const boot = async () => {
+      // Need the current user first — all flags are keyed by their id so a
+      // browser that ran the tour under account A still shows it for B.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+      setUserId(user.id);
+
       const forced =
         typeof window !== 'undefined' &&
         new URLSearchParams(window.location.search).get('tour') === 'start';
 
       if (forced) {
-        localStorage.removeItem(STORAGE_DONE);
-        localStorage.setItem(STORAGE_STEP, '0');
+        localStorage.removeItem(doneKey(user.id));
+        localStorage.setItem(stepKey(user.id), '0');
         setStepIdx(0);
         setActive(true);
         return;
       }
-      if (localStorage.getItem(STORAGE_DONE) === 'yes') return;
+      if (localStorage.getItem(doneKey(user.id)) === 'yes') return;
 
       // Only auto-fire for genuinely new accounts — anyone with a bank has
       // used the app before. Cheap `head:true` count avoids fetching rows.
@@ -112,10 +121,10 @@ export default function TourGuide() {
         .select('id', { count: 'exact', head: true });
       if (cancelled) return;
       if ((count ?? 0) > 0) {
-        localStorage.setItem(STORAGE_DONE, 'yes');
+        localStorage.setItem(doneKey(user.id), 'yes');
         return;
       }
-      const stored = parseInt(localStorage.getItem(STORAGE_STEP) || '0', 10);
+      const stored = parseInt(localStorage.getItem(stepKey(user.id)) || '0', 10);
       setStepIdx(Number.isFinite(stored) && stored >= 0 && stored < STEPS.length ? stored : 0);
       setActive(true);
     };
@@ -192,8 +201,10 @@ export default function TourGuide() {
   }, [active, stepIdx, pathname]);
 
   const finish = () => {
-    localStorage.setItem(STORAGE_DONE, 'yes');
-    localStorage.removeItem(STORAGE_STEP);
+    if (userId) {
+      localStorage.setItem(doneKey(userId), 'yes');
+      localStorage.removeItem(stepKey(userId));
+    }
     setActive(false);
     setRect(null);
   };
@@ -204,7 +215,7 @@ export default function TourGuide() {
       return;
     }
     const nxt = stepIdx + 1;
-    localStorage.setItem(STORAGE_STEP, String(nxt));
+    if (userId) localStorage.setItem(stepKey(userId), String(nxt));
     setStepIdx(nxt);
     setRect(null);
   };
