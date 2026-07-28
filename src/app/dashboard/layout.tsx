@@ -96,6 +96,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           updated_at: profile?.updated_at || '',
         });
         setLoading(false);
+
+        // Fire the welcome email once. The API route is idempotent — if
+        // welcome_sent_at is already stamped, it just no-ops. Best-effort;
+        // failure never blocks the dashboard.
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            fetch('/api/email/welcome', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            }).catch(() => {});
+          }
+        } catch { /* ignore */ }
       } catch {
         router.push('/');
       }

@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { sendReceiptEmail } from '@/lib/emailReceipt';
+import { buildPaymentDone } from '@/lib/email/templates';
+import { sendEmail } from '@/lib/email/send';
 
 interface VerifyBody {
   razorpay_order_id?: string;
@@ -73,22 +74,21 @@ export async function POST(req: NextRequest) {
   try {
     const { data: userRow } = await admin.auth.admin.getUserById(userId);
     const email = userRow?.user?.email;
-    const name =
+    const firstName =
       (userRow?.user?.user_metadata?.full_name as string | undefined) ||
       (userRow?.user?.user_metadata?.name as string | undefined) ||
       null;
     const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      new URL(req.url).origin;
+      process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
     if (email) {
-      await sendReceiptEmail({
-        to: email,
-        name,
+      const tpl = buildPaymentDone({
+        firstName,
+        appUrl,
         amountInRupees: 499,
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
-        appUrl,
       });
+      await sendEmail({ to: email, subject: tpl.subject, html: tpl.html });
     }
   } catch (mailErr) {
     console.warn('[razorpay/verify] receipt email failed:', mailErr);
