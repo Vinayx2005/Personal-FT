@@ -66,13 +66,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getUser = async () => {
+    let mounted = true;
+    let handled = false;
+
+    const loadProfile = async (authUser: { id: string; email?: string | null; user_metadata?: any }) => {
+      if (!mounted || handled) return;
+      handled = true;
       try {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser) {
-          router.push('/');
-          return;
-        }
         const { data: userData } = await supabase
           .from('users')
           .select('*')
@@ -97,9 +97,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         });
         setLoading(false);
 
-        // Fire the welcome email once. The API route is idempotent — if
-        // welcome_sent_at is already stamped, it just no-ops. Best-effort;
-        // failure never blocks the dashboard.
+        // Fire the welcome email once. Idempotent server-side.
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) {
@@ -113,7 +111,33 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         router.push('/');
       }
     };
-    getUser();
+
+    // Subscribe FIRST so we don't miss the SIGNED_IN event that fires as the
+    // Supabase SDK parses `#access_token=...` from the OAuth callback URL.
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) loadProfile(session.user);
+    });
+
+    // Then check whatever's already in storage/cookie. Retry a few times to
+    // give the hash parse a chance to complete before we bounce to landing.
+    (async () => {
+      for (let i = 0; i < 8; i++) {
+        if (!mounted || handled) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          loadProfile(session.user);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      if (!mounted || handled) return;
+      router.push('/');
+    })();
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, [router]);
 
   const handleLogout = async () => {
