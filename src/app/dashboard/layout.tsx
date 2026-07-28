@@ -7,6 +7,7 @@ import { User } from '@/types';
 import Link from 'next/link';
 import GlobalSearch from '@/components/GlobalSearch';
 import TourGuide from '@/components/TourGuide';
+import SubscriptionGate from '@/components/SubscriptionGate';
 import {
   Menu,
   X,
@@ -253,6 +254,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <main className="flex-1 px-4 md:px-6 pb-6 pt-2">{children}</main>
       </div>
       <TourGuide />
+      <SubscriptionGate />
     </div>
   );
 }
