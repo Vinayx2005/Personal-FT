@@ -450,7 +450,7 @@ export default function ExpensesPage() {
           <DateRangePicker value={range} onChange={setRange} />
           <button
             onClick={() => downloadCSVTemplate('expense')}
-            className="btn btn-outline"
+            className="btn btn-outline hidden md:inline-flex"
             title="Download CSV template"
           >
             <Download size={16} />
@@ -458,7 +458,7 @@ export default function ExpensesPage() {
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="btn btn-secondary"
+            className="btn btn-secondary hidden md:inline-flex"
             disabled={importing}
           >
             <Upload size={16} />
@@ -475,18 +475,32 @@ export default function ExpensesPage() {
             className="hidden"
             onChange={handleCSVImport}
           />
+          {/* Desktop-only top button. Mobile users tap the FAB at bottom-right. */}
           <button
             onClick={() => {
               resetForm();
               setShowForm(!showForm);
             }}
-            className="btn btn-primary"
+            className="btn btn-primary hidden md:inline-flex"
           >
             <Plus size={16} />
             Add Expense
           </button>
         </div>
       </div>
+
+      {/* Mobile FAB — floats above content, thumb-reachable. */}
+      <button
+        type="button"
+        onClick={() => {
+          resetForm();
+          setShowForm(true);
+        }}
+        className="md:hidden fixed bottom-6 right-6 z-30 h-14 w-14 rounded-full bg-18-orange text-white flex items-center justify-center shadow-[0_10px_40px_-5px_rgba(243,115,53,0.6)] hover:brightness-110 active:scale-95 transition-all"
+        aria-label="Add expense"
+      >
+        <Plus size={26} />
+      </button>
 
       {/* Live receipt-fetch progress during CSV import */}
       {receiptProgress && (
@@ -558,12 +572,16 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      {/* Form (modal) */}
+      {/* Form (modal) — bottom sheet on mobile, centered card on desktop */}
       {showForm && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center overflow-y-auto p-4" onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}>
-          <div className="card bg-18-surface border-18-border w-full max-w-3xl my-8 shadow-2xl">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-white">
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowForm(false); resetForm(); } }}
+        >
+          <div className="bg-18-surface border border-18-border w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[calc(100vh-4rem)] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+          {/* Sticky header */}
+          <div className="flex justify-between items-center px-5 py-4 border-b border-18-border/60 shrink-0">
+            <h2 className="text-lg sm:text-2xl font-bold text-white">
               {editingId ? 'Edit Expense' : 'New Expense'}
             </h2>
             <button
@@ -571,14 +589,16 @@ export default function ExpensesPage() {
                 setShowForm(false);
                 resetForm();
               }}
-              className="text-white hover:text-18-orange"
+              className="text-white hover:text-18-orange p-2 -m-2"
+              aria-label="Close"
             >
-              <X size={24} />
+              <X size={22} />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
               <div className="form-group">
                 <label className="form-label">Amount *</label>
                 <input
@@ -702,26 +722,28 @@ export default function ExpensesPage() {
                 />
               </div>
             </div>
+          </div>
 
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="btn btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                disabled={submitting}
-              >
-                {submitting ? 'Saving…' : editingId ? 'Update Expense' : 'Add Expense'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
+          {/* Sticky action bar at the bottom — always in reach on mobile */}
+          <div className="border-t border-18-border/60 px-5 py-4 shrink-0 flex flex-col-reverse sm:flex-row gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                resetForm();
+              }}
+              className="sm:flex-1 py-3 rounded-full bg-18-surface-2 border border-18-border text-white font-semibold hover:bg-18-bg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="sm:flex-1 py-3 rounded-full bg-18-orange text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all shadow-[0_8px_20px_-6px_rgba(243,115,53,0.6)]"
+            >
+              {submitting ? 'Saving…' : editingId ? 'Update Expense' : 'Add Expense'}
+            </button>
+          </div>
           </form>
         </div>
         </div>
