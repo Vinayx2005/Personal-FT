@@ -36,21 +36,24 @@ h3 { @apply text-xl; }
 h4 { @apply text-lg; }
 p  { @apply leading-relaxed text-18-dark-text; }
 
-/* Buttons */
-.btn {
-  @apply inline-flex items-center justify-center gap-2 px-5 py-2 rounded-18-sm font-lato font-semibold text-sm cursor-pointer border-none transition-all duration-200 whitespace-nowrap;
-}
-.btn-primary {
-  @apply bg-18-orange text-white hover:brightness-110;
-}
-.btn-secondary {
-  @apply bg-18-surface-2 text-white border border-18-border hover:bg-18-surface;
-}
-.btn-outline {
-  @apply border-2 border-18-orange text-18-orange bg-transparent hover:bg-18-orange hover:text-white;
-}
-.btn:disabled {
-  @apply opacity-50 cursor-not-allowed;
+/* Buttons — wrapped in @layer components so Tailwind utilities (e.g.
+   `hidden`, `w-full`) can still override .btn styles from a class attribute. */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2 rounded-18-sm font-lato font-semibold text-sm cursor-pointer border-none transition-all duration-200 whitespace-nowrap;
+  }
+  .btn-primary {
+    @apply bg-18-orange text-white hover:brightness-110;
+  }
+  .btn-secondary {
+    @apply bg-18-surface-2 text-white border border-18-border hover:bg-18-surface;
+  }
+  .btn-outline {
+    @apply border-2 border-18-orange text-18-orange bg-transparent hover:bg-18-orange hover:text-white;
+  }
+  .btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
 }
 
 /* Search highlight — flashed on rows scrolled-to via URL hash */

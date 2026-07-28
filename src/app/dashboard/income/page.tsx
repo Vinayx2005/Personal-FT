@@ -600,20 +600,20 @@ export default function IncomePage() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="card bg-green-900/20 border-green-800/40">
-          <p className="text-green-300 text-sm font-bold uppercase mb-2">Total Income</p>
-          <h3 className="text-xl font-bold text-green-300">{formatCurrency(totalIncome)}</h3>
+      {/* Summary Cards — 2-up on mobile too, more compact padding */}
+      <div className="grid grid-cols-2 gap-3 md:gap-6 mb-6 md:mb-8">
+        <div className="card bg-green-900/20 border-green-800/40 !p-4 md:!p-6">
+          <p className="text-green-300 text-[10px] md:text-sm font-bold uppercase tracking-wider mb-1 md:mb-2">Total</p>
+          <h3 className="text-base md:text-xl font-bold text-green-300 tabular-nums break-words">{formatCurrency(totalIncome)}</h3>
         </div>
-        <div className="card bg-18-orange/15 border-18-orange/40">
-          <p className="text-white text-sm font-bold uppercase mb-2">Transactions</p>
-          <h3 className="text-xl font-bold text-white">{realTxCount}</h3>
+        <div className="card bg-18-orange/15 border-18-orange/40 !p-4 md:!p-6">
+          <p className="text-white text-[10px] md:text-sm font-bold uppercase tracking-wider mb-1 md:mb-2">Transactions</p>
+          <h3 className="text-base md:text-xl font-bold text-white tabular-nums">{realTxCount}</h3>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      {/* Filters — 2-up grid on mobile so pills share the row cleanly */}
+      <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center mb-4">
         <MultiSelectFilter
           label="Category"
           options={categories.slice().sort((a, b) => a.name.localeCompare(b.name)).map((c) => ({ value: c.id, label: c.name }))}
@@ -630,7 +630,7 @@ export default function IncomePage() {
           <button
             type="button"
             onClick={() => { setCategoryFilter(new Set()); setBankFilter(new Set()); }}
-            className="text-xs text-18-orange hover:underline ml-1"
+            className="col-span-2 md:col-auto text-xs text-18-orange hover:underline md:ml-1 text-left"
           >
             Clear filters
           </button>

@@ -19,10 +19,21 @@ interface Props {
 // for Category and Bank multi-select. Closes on click-outside or Esc.
 export default function MultiSelectFilter({ label, options, selected, onChange }: Props) {
   const [open, setOpen] = useState(false);
+  // Anchor side for the popover — if the trigger sits close to the right
+  // edge of the viewport, opening leftward keeps the popover on-screen.
+  const [anchorRight, setAnchorRight] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    // Measure the trigger and decide which side to anchor to.
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const popoverMin = 240; // matches min-w-[240px] below
+      const wouldOverflow = rect.left + popoverMin > window.innerWidth - 12;
+      setAnchorRight(wouldOverflow);
+    }
     const onDoc = (e: MouseEvent) => {
       if (!containerRef.current) return;
       if (!containerRef.current.contains(e.target as Node)) setOpen(false);
@@ -58,11 +69,12 @@ export default function MultiSelectFilter({ label, options, selected, onChange }
   const hasActive = selected.size > 0;
 
   return (
-    <div ref={containerRef} className="relative inline-block">
+    <div ref={containerRef} className="relative inline-block w-full md:w-auto">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-2 text-sm rounded-full px-4 py-2 border transition-colors ${
+        className={`w-full md:w-auto inline-flex items-center gap-2 text-sm rounded-full px-3 md:px-4 py-2 border transition-colors ${
           hasActive
             ? 'bg-18-orange/15 border-18-orange/50 text-white'
             : 'bg-18-surface border-18-border text-white/80 hover:border-18-orange/40'
@@ -71,7 +83,7 @@ export default function MultiSelectFilter({ label, options, selected, onChange }
         <span className="text-[10px] uppercase font-bold tracking-wider text-white/50">
           {label}
         </span>
-        <span className="font-semibold">{summary}</span>
+        <span className="font-semibold truncate flex-1 md:flex-none text-left">{summary}</span>
         {hasActive && (
           <span
             role="button"
@@ -91,7 +103,7 @@ export default function MultiSelectFilter({ label, options, selected, onChange }
         />
       </button>
       {open && (
-        <div className="absolute z-30 mt-2 left-0 min-w-[240px] max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto bg-18-surface border border-18-border rounded-xl shadow-2xl p-2">
+        <div className={`absolute z-30 mt-2 ${anchorRight ? 'right-0' : 'left-0'} min-w-[240px] max-w-[calc(100vw-2rem)] max-h-72 overflow-y-auto bg-18-surface border border-18-border rounded-xl shadow-2xl p-2`}>
           {options.length === 0 ? (
             <p className="text-xs text-white/50 p-3">No options.</p>
           ) : (

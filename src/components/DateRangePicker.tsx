@@ -70,7 +70,7 @@ export default function DateRangePicker({ value, onChange }: Props) {
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-2 card p-4 shadow-lg left-0 right-auto sm:left-auto sm:right-0 w-[min(320px,calc(100vw-1.5rem))] sm:w-[320px]">
+        <div className="absolute z-50 mt-2 card p-4 shadow-lg right-0 left-auto w-[min(320px,calc(100vw-1.5rem))] sm:w-[320px]">
           <p className="text-xs uppercase font-bold text-18-dark-text mb-2">Presets</p>
           <div className="grid grid-cols-2 gap-1 mb-4">
             {PRESET_ORDER.map((p) => (
