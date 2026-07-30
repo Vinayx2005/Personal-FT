@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { User, Bank, Category, BankBalanceHistory } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit2, Trash2, X, History, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, History, AlertTriangle, Lock, Eye, EyeOff, Check } from 'lucide-react';
 import { logAction } from '@/lib/auditLog';
 
 export default function SettingsPage() {
@@ -41,12 +41,32 @@ export default function SettingsPage() {
   const [historyOpenFor, setHistoryOpenFor] = useState<number | null>(null);
   const [historyByBank, setHistoryByBank] = useState<Record<number, BankBalanceHistory[]>>({});
 
+  // ----- Password management -----
+  // hasPassword = null while loading; true if user already has an email/password
+  // identity, false if they only signed in via an OAuth provider (Google) and
+  // need to "set" a password for the first time.
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [authEmail, setAuthEmail] = useState<string>('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const {
           data: { user: authUser },
         } = await supabase.auth.getUser();
+
+        // Track whether the user has an email/password identity (so we know
+        // to show a "current password" field) or is OAuth-only (so we show
+        // "set password" instead of "change password").
+        const identities = (authUser?.identities || []) as Array<{ provider: string }>;
+        setHasPassword(identities.some((i) => i.provider === 'email'));
+        setAuthEmail(authUser?.email || '');
 
         const { data: userData } = await supabase
           .from('users')
@@ -357,6 +377,69 @@ export default function SettingsPage() {
       alert('Bank deleted');
     } catch (err: any) {
       alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (savingPassword) return;
+    setPasswordFeedback(null);
+
+    if (newPassword.length < 8) {
+      setPasswordFeedback({ type: 'error', text: 'Password must be at least 8 characters.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordFeedback({ type: 'error', text: 'New password and confirmation don’t match.' });
+      return;
+    }
+    if (hasPassword && !currentPassword) {
+      setPasswordFeedback({ type: 'error', text: 'Enter your current password to confirm the change.' });
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      // If they already have a password, verify it first by re-signing in.
+      // Supabase's updateUser doesn't require the old password, so without
+      // this check anyone with a live session could rotate the credential.
+      if (hasPassword) {
+        const { error: verifyErr } = await supabase.auth.signInWithPassword({
+          email: authEmail,
+          password: currentPassword,
+        });
+        if (verifyErr) {
+          setPasswordFeedback({ type: 'error', text: 'Current password is incorrect.' });
+          setSavingPassword(false);
+          return;
+        }
+      }
+
+      const { error: updErr } = await supabase.auth.updateUser({ password: newPassword });
+      if (updErr) {
+        setPasswordFeedback({ type: 'error', text: updErr.message });
+        setSavingPassword(false);
+        return;
+      }
+
+      // Refresh identity info — after setting a password on an OAuth-only
+      // account, the email identity now exists so future visits show the
+      // "current password" field.
+      const { data: { user: refreshed } } = await supabase.auth.getUser();
+      const identities = (refreshed?.identities || []) as Array<{ provider: string }>;
+      setHasPassword(identities.some((i) => i.provider === 'email'));
+
+      setPasswordFeedback({
+        type: 'success',
+        text: hasPassword ? 'Password updated.' : 'Password set — you can now sign in with email + password too.',
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setPasswordFeedback({ type: 'error', text: err.message || 'Something went wrong.' });
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -720,6 +803,115 @@ export default function SettingsPage() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* ---------- ACCOUNT SECURITY (PASSWORD) ---------- */}
+      <div className="bg-18-surface border border-18-border rounded-2xl p-5 mb-8">
+        <div className="flex items-start gap-3 mb-4">
+          <Lock className="text-18-orange shrink-0 mt-0.5" size={18} />
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-white">
+              {hasPassword === false ? 'Set a password' : 'Change password'}
+            </h2>
+            <p className="text-sm text-white/60 mt-1">
+              {hasPassword === null
+                ? 'Checking your account…'
+                : hasPassword
+                ? 'Update the password you use to sign in with email.'
+                : 'You currently sign in with Google. Set a password so you can also sign in with your email.'}
+            </p>
+          </div>
+        </div>
+
+        {hasPassword !== null && (
+          <form onSubmit={handleSavePassword} className="space-y-4 max-w-md">
+            {hasPassword && (
+              <div>
+                <label className="block text-xs uppercase tracking-widest font-bold text-white/50 mb-2">
+                  Current password
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="form-input"
+                  placeholder="••••••••"
+                  disabled={savingPassword}
+                />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs uppercase tracking-widest font-bold text-white/50 mb-2">
+                New password
+              </label>
+              <input
+                type={showPasswords ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                className="form-input"
+                placeholder="At least 8 characters"
+                disabled={savingPassword}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-widest font-bold text-white/50 mb-2">
+                Confirm new password
+              </label>
+              <input
+                type={showPasswords ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                className="form-input"
+                placeholder="Type it again"
+                disabled={savingPassword}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPasswords((v) => !v)}
+              className="inline-flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
+            >
+              {showPasswords ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showPasswords ? 'Hide passwords' : 'Show passwords'}
+            </button>
+
+            {passwordFeedback && (
+              <div
+                className={`p-3 rounded-xl text-sm flex items-start gap-2 ${
+                  passwordFeedback.type === 'success'
+                    ? 'bg-green-900/30 border border-green-800/40 text-green-300'
+                    : 'bg-red-900/30 border border-red-800/40 text-red-300'
+                }`}
+              >
+                {passwordFeedback.type === 'success' ? (
+                  <Check size={16} className="shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                )}
+                <span>{passwordFeedback.text}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={savingPassword || !newPassword || !confirmPassword || (hasPassword && !currentPassword)}
+              className="inline-flex items-center gap-2 bg-18-orange text-white rounded-full px-5 py-2.5 text-sm font-bold hover:brightness-110 transition-all shadow-[0_8px_24px_-8px_rgba(243,115,53,0.6)] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Lock size={14} />
+              {savingPassword
+                ? 'Saving…'
+                : hasPassword
+                ? 'Update password'
+                : 'Set password'}
+            </button>
+          </form>
+        )}
       </div>
 
       {/* ---------- DANGER ZONE ---------- */}
