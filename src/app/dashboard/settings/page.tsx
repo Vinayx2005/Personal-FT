@@ -24,6 +24,10 @@ export default function SettingsPage() {
     bank_name: '',
     opening_balance: 0,
   });
+  // Separate raw text state so the input can truly be empty (a number `0`
+  // in `bankForm.opening_balance` used to render as "0" that couldn't
+  // be cleared — every keystroke re-clamped back to 0 through parseFloat).
+  const [openingBalanceInput, setOpeningBalanceInput] = useState('');
 
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
@@ -87,6 +91,7 @@ export default function SettingsPage() {
       bank_name: '',
       opening_balance: 0,
     });
+    setOpeningBalanceInput('');
     setEditingBankId(null);
     setBalanceChangeReason('');
   };
@@ -194,6 +199,7 @@ export default function SettingsPage() {
       bank_name: bank.bank_name,
       opening_balance: bank.opening_balance || 0,
     });
+    setOpeningBalanceInput(bank.opening_balance ? String(bank.opening_balance) : '');
     setEditingBankId(bank.id);
     setBalanceChangeReason('');
     setShowBankForm(true);
@@ -448,17 +454,22 @@ export default function SettingsPage() {
                 <div className="form-group md:col-span-2">
                   <label className="form-label">Opening Balance (₹)</label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     className="form-input"
                     placeholder="0.00"
-                    value={bankForm.opening_balance}
-                    onChange={(e) =>
-                      setBankForm({
-                        ...bankForm,
-                        opening_balance: parseFloat(e.target.value) || 0,
-                      })
-                    }
+                    value={openingBalanceInput}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      // Allow empty OR a valid partial decimal ("", "1", "1.", "1.5")
+                      if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                        setOpeningBalanceInput(raw);
+                        setBankForm({
+                          ...bankForm,
+                          opening_balance: raw === '' ? 0 : parseFloat(raw) || 0,
+                        });
+                      }
+                    }}
                   />
                   <p className="text-xs text-18-dark-text mt-1">
                     Starting cash in this bank. Used by the Dashboard&apos;s Current Balance.
