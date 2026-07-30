@@ -18,6 +18,7 @@ interface Feedback {
 export default function QuickAddPage() {
   const router = useRouter();
   const [text, setText] = useState('');
+  const [spendDate, setSpendDate] = useState<string>(() => formatDateISO(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -127,8 +128,8 @@ export default function QuickAddPage() {
       }
       const bank = matches[0];
 
-      // Use the user's LOCAL date so a 00:30 IST log doesn't file as yesterday.
-      const today = formatDateISO(new Date());
+      // Fall back to today if the date input got cleared somehow.
+      const useDate = spendDate || formatDateISO(new Date());
       const { data: inserted, error: insErr } = await supabase
         .from('transactions')
         .insert({
@@ -137,7 +138,7 @@ export default function QuickAddPage() {
           category_id: category.id,
           description,
           amount,
-          transaction_date: today,
+          transaction_date: useDate,
           notes: 'via quick add',
           status: 'posted',
           created_by: userId,
@@ -161,11 +162,14 @@ export default function QuickAddPage() {
 
       setFeedback({
         type: 'success',
-        text: `Saved ${formatCurrency(amount)} · ${category.name} / ${bank.bank_name}${
+        text: `Saved ${formatCurrency(amount)} on ${useDate} · ${category.name} / ${bank.bank_name}${
           createdCategory ? ` (new category created)` : ''
         }`,
       });
       setText('');
+      setSpendDate(formatDateISO(new Date()));
+      setVoiceTranscript(null);
+      setVoiceMissing([]);
       fetchCurrentStreak().then(setStreak);
       setTimeout(() => textareaRef.current?.focus(), 50);
     } catch (err: any) {
@@ -209,19 +213,42 @@ export default function QuickAddPage() {
     const categories: string[] = (catsRes.data || []).map((c: any) => c.name).filter(Boolean);
 
     const recognition = new SR();
+    // en-IN handles Indian English + common Hinglish words. The parser also
+    // understands sau/hazaar/lakh and aaj/kal/parso when they slip through.
     recognition.lang = 'en-IN';
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+    // Multiple candidates so we can retry the parse against alternates if the
+    // top result comes back missing key fields.
+    recognition.maxAlternatives = 3;
     recognition.continuous = false;
     recognitionRef.current = recognition;
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript || '';
-      const parsed = parseVoiceInput(transcript, banks, categories);
-      const nextText = toQuickAddText(parsed);
+      // Try each alternate; pick the parse with the fewest missing fields.
+      // Ties go to the top (highest-confidence) result.
+      const alts: string[] = [];
+      const first = event.results[0];
+      for (let i = 0; i < first.length; i++) {
+        const t = (first[i]?.transcript || '').trim();
+        if (t) alts.push(t);
+      }
+      if (alts.length === 0) return;
+
+      let bestParsed = parseVoiceInput(alts[0], banks, categories);
+      let bestTranscript = alts[0];
+      for (let i = 1; i < alts.length; i++) {
+        const p = parseVoiceInput(alts[i], banks, categories);
+        if (p.missing.length < bestParsed.missing.length) {
+          bestParsed = p;
+          bestTranscript = alts[i];
+        }
+      }
+
+      const nextText = toQuickAddText(bestParsed);
       setText(nextText);
-      setVoiceTranscript(transcript);
-      setVoiceMissing(parsed.missing);
+      setSpendDate(bestParsed.date);
+      setVoiceTranscript(bestTranscript);
+      setVoiceMissing(bestParsed.missing);
       // Highlight in the textarea for quick edits
       setTimeout(() => textareaRef.current?.focus(), 50);
     };
@@ -325,9 +352,10 @@ export default function QuickAddPage() {
                 : 'Tap to speak'}
             </p>
             {voiceState === 'idle' && !voiceTranscript && (
-              <p className="mt-2 text-xs text-white/40 max-w-xs text-center italic">
-                e.g. &ldquo;Paid 500 for groceries from HDFC&rdquo;
-              </p>
+              <div className="mt-2 text-xs text-white/40 max-w-sm text-center space-y-1">
+                <p className="italic">&ldquo;Paid 500 for groceries yesterday from HDFC&rdquo;</p>
+                <p className="italic">&ldquo;Do hazaar for petrol on Saturday from ICICI&rdquo;</p>
+              </div>
             )}
           </div>
 
@@ -364,6 +392,41 @@ export default function QuickAddPage() {
                 autoCorrect="on"
                 spellCheck={false}
               />
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">
+                Date of spend
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  value={spendDate}
+                  max={formatDateISO(new Date())}
+                  onChange={(e) => setSpendDate(e.target.value)}
+                  className="flex-1 min-w-0 p-3 bg-18-bg border border-18-border rounded-xl text-sm text-white focus:outline-none focus:border-18-orange transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSpendDate(formatDateISO(new Date()))}
+                  className="px-3 py-2 text-xs font-semibold bg-18-bg border border-18-border rounded-lg text-white/70 hover:text-white hover:border-white/30 transition-colors"
+                  title="Set to today"
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - 1);
+                    setSpendDate(formatDateISO(d));
+                  }}
+                  className="px-3 py-2 text-xs font-semibold bg-18-bg border border-18-border rounded-lg text-white/70 hover:text-white hover:border-white/30 transition-colors"
+                  title="Set to yesterday"
+                >
+                  Yesterday
+                </button>
+              </div>
             </div>
 
             {feedback && (
@@ -429,6 +492,33 @@ export default function QuickAddPage() {
                 </div>
               </li>
             </ol>
+          </div>
+
+          <div className="bg-18-surface border border-18-border rounded-2xl p-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">
+              Say the date
+            </p>
+            <ul className="space-y-1.5 text-xs text-white/70">
+              <li><span className="text-white font-mono">today</span> / <span className="text-white font-mono">aaj</span></li>
+              <li><span className="text-white font-mono">yesterday</span> / <span className="text-white font-mono">kal</span></li>
+              <li><span className="text-white font-mono">day before yesterday</span> / <span className="text-white font-mono">parso</span></li>
+              <li><span className="text-white font-mono">last Saturday</span>, <span className="text-white font-mono">on Friday</span></li>
+              <li><span className="text-white font-mono">3 days ago</span></li>
+              <li><span className="text-white font-mono">15 Dec</span>, <span className="text-white font-mono">15/12</span></li>
+            </ul>
+          </div>
+
+          <div className="bg-18-surface border border-18-border rounded-2xl p-5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">
+              Say the amount
+            </p>
+            <ul className="space-y-1.5 text-xs text-white/70">
+              <li><span className="text-white font-mono">500 rupees</span></li>
+              <li><span className="text-white font-mono">paanch sau</span> = 500</li>
+              <li><span className="text-white font-mono">do hazaar</span> = 2000</li>
+              <li><span className="text-white font-mono">2 lakh</span> = 200000</li>
+              <li><span className="text-white font-mono">99 rupees 50 paise</span> = 99.50</li>
+            </ul>
           </div>
 
           <div className="bg-18-orange/5 border border-18-orange/30 rounded-2xl p-5">
