@@ -18,6 +18,7 @@ import {
   Bot as BotIcon,
   ArrowRight,
   AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 import AddToHomeButton from '@/components/AddToHomeButton';
 
@@ -845,13 +846,15 @@ function EditForm(props: {
         </label>
         <div>
           <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Category</span>
-          <ChipSelect
+          <Dropdown
+            label="Category"
             options={categoryNames}
             value={draft.category}
             onChange={(v) => props.onChange({ category: v })}
+            placeholder="Pick a category…"
             allowCustom
-            customLabel="+ New category"
-            customPlaceholder="Type a new category name…"
+            customLabel="+ New category…"
+            customPlaceholder="Type a new category name"
           />
         </div>
         <div>
@@ -983,6 +986,197 @@ function ChipSelect(props: {
 
       {options.length === 0 && !showCustom && (
         <p className="text-xs text-white/40 italic mt-1">{emptyText || 'No options available.'}</p>
+      )}
+    </div>
+  );
+}
+
+// ---------- Bottom-sheet dropdown ----------
+// The native <select> picker on mobile is inconsistent and can't match the
+// dark theme. This is a styled trigger that opens a bottom sheet on phones
+// (centered modal on desktop) with big tap-target rows, a checkmark on the
+// selected option, and an optional "+ New" row at the bottom that reveals
+// an inline text input for a custom value.
+
+function Dropdown(props: {
+  label?: string;
+  options: string[];
+  value: string | null;
+  onChange: (v: string | null) => void;
+  placeholder?: string;
+  allowCustom?: boolean;
+  customLabel?: string;
+  customPlaceholder?: string;
+  emptyText?: string;
+}) {
+  const { label, options, value, onChange, placeholder, allowCustom, customLabel, customPlaceholder, emptyText } = props;
+
+  const matchedOption = value
+    ? options.find((o) => o.toLowerCase() === value.toLowerCase()) || null
+    : null;
+  const valueIsCustom = !!value && !matchedOption;
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const showCustom = allowCustom && (customOpen || valueIsCustom);
+
+  const displayValue = matchedOption || (valueIsCustom ? value : null);
+  const isPlaceholder = !displayValue && !showCustom;
+
+  // Close sheet on Escape and lock body scroll while open.
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSheetOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [sheetOpen]);
+
+  return (
+    <div className="mt-1.5 space-y-2">
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        className="w-full flex items-center justify-between gap-2 bg-18-bg border border-18-border rounded-lg px-3 py-2.5 text-sm text-left focus:outline-none focus:border-18-orange hover:border-white/25 transition-colors cursor-pointer"
+      >
+        <span className={isPlaceholder ? 'text-white/40' : 'text-white truncate'}>
+          {displayValue || placeholder || '— select —'}
+        </span>
+        <ChevronDown size={16} className="text-white/60 shrink-0" aria-hidden />
+      </button>
+
+      {sheetOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center animate-[fade-in_0.15s_ease-out]"
+          style={{ animation: 'fade-in 0.15s ease-out' }}
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setSheetOpen(false)}
+            aria-hidden
+          />
+
+          {/* Sheet — slides up from bottom on phones, centered card on desktop */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={label ? `Select ${label}` : 'Select an option'}
+            className="relative w-full md:max-w-sm bg-18-surface border-t md:border border-18-border rounded-t-2xl md:rounded-2xl max-h-[75vh] md:max-h-[70vh] overflow-hidden flex flex-col shadow-[0_-20px_60px_-10px_rgba(0,0,0,0.9)] md:shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
+          >
+            {/* Grabber (mobile only — visual affordance for the sheet metaphor) */}
+            <div className="md:hidden pt-2.5 pb-1 flex justify-center">
+              <span className="h-1 w-10 rounded-full bg-white/20" aria-hidden />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-2 md:pt-4 pb-3 border-b border-18-border/60">
+              <h3 className="text-sm font-bold text-white">
+                {label ? `Choose ${label.toLowerCase()}` : 'Choose an option'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSheetOpen(false)}
+                className="p-1 -mr-1 text-white/60 hover:text-white transition-colors"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="overflow-y-auto flex-1">
+              {options.length === 0 ? (
+                <p className="p-4 text-sm text-white/40 italic">
+                  {emptyText || 'No options available.'}
+                </p>
+              ) : (
+                <ul>
+                  {options.map((o) => {
+                    const selected =
+                      matchedOption?.toLowerCase() === o.toLowerCase();
+                    return (
+                      <li key={o}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onChange(o);
+                            setCustomOpen(false);
+                            setSheetOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between gap-3 px-4 py-3.5 text-[15px] text-left transition-colors active:bg-white/10 ${
+                            selected
+                              ? 'text-white bg-18-orange/10'
+                              : 'text-white/85 hover:bg-white/5'
+                          }`}
+                        >
+                          <span className="truncate">{o}</span>
+                          {selected && (
+                            <Check
+                              size={18}
+                              className="text-18-orange shrink-0"
+                              aria-label="selected"
+                            />
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+
+              {allowCustom && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomOpen(true);
+                    setSheetOpen(false);
+                    if (!valueIsCustom) onChange(null);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-3.5 text-[15px] text-left text-18-orange font-semibold border-t border-18-border/60 hover:bg-18-orange/5 active:bg-18-orange/10 transition-colors"
+                >
+                  {customLabel || '+ New'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCustom && (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            className="form-input flex-1"
+            placeholder={customPlaceholder || 'Type new value…'}
+            value={valueIsCustom ? (value || '') : ''}
+            autoFocus
+            onChange={(e) => onChange(e.target.value || null)}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setCustomOpen(false);
+              if (valueIsCustom) onChange(null);
+            }}
+            className="p-2 text-white/50 hover:text-white transition-colors"
+            aria-label="Cancel custom entry"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {options.length === 0 && !showCustom && emptyText && (
+        <p className="text-xs text-white/40 italic mt-1">{emptyText}</p>
       )}
     </div>
   );
