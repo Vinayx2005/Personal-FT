@@ -843,35 +843,26 @@ function EditForm(props: {
             onChange={(e) => props.onChange({ description: e.target.value })}
           />
         </label>
-        <label className="block">
+        <div>
           <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Category</span>
-          <input
-            type="text"
-            className="form-input mt-1"
-            placeholder="Food, Transport, …"
-            list="quickchat-categories"
-            value={draft.category || ''}
-            onChange={(e) => props.onChange({ category: e.target.value || null })}
+          <ChipSelect
+            options={categoryNames}
+            value={draft.category}
+            onChange={(v) => props.onChange({ category: v })}
+            allowCustom
+            customLabel="+ New category"
+            customPlaceholder="Type a new category name…"
           />
-          <datalist id="quickchat-categories">
-            {categoryNames.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </label>
-        <label className="block">
+        </div>
+        <div>
           <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Bank / Card</span>
-          <select
-            className="form-input mt-1"
-            value={draft.bank || ''}
-            onChange={(e) => props.onChange({ bank: e.target.value || null })}
-          >
-            <option value="">— select —</option>
-            {bankNames.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        </label>
+          <ChipSelect
+            options={bankNames}
+            value={draft.bank}
+            onChange={(v) => props.onChange({ bank: v })}
+            emptyText="No banks set up yet — add one in Settings."
+          />
+        </div>
         <label className="block">
           <span className="text-[10px] uppercase tracking-widest font-bold text-white/50">Date</span>
           <input
@@ -899,6 +890,100 @@ function EditForm(props: {
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+// ---------- Chip-based select ----------
+// Big-tap-target chips replace <select>/datalist for Category and Bank so the
+// edit form stays fast on mobile without a native picker (which is
+// inconsistent across iOS/Android and impossible to style).
+
+function ChipSelect(props: {
+  options: string[];
+  value: string | null;
+  onChange: (v: string | null) => void;
+  allowCustom?: boolean;
+  customLabel?: string;
+  customPlaceholder?: string;
+  emptyText?: string;
+}) {
+  const { options, value, onChange, allowCustom, customLabel, customPlaceholder, emptyText } = props;
+
+  // `value` is "custom" when it's set but doesn't match any option.
+  const matchedOption = value
+    ? options.find((o) => o.toLowerCase() === value.toLowerCase()) || null
+    : null;
+  const valueIsCustom = !!value && !matchedOption;
+
+  // Explicit toggle so the user can enter custom mode even with no value yet
+  // (or after picking a chip they can go back to custom without clearing first).
+  const [customOpen, setCustomOpen] = useState(false);
+  const showCustom = allowCustom && (customOpen || valueIsCustom);
+
+  return (
+    <div className="mt-1.5">
+      {options.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {options.map((opt) => {
+            const selected = matchedOption?.toLowerCase() === opt.toLowerCase();
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  onChange(opt);
+                  setCustomOpen(false);
+                }}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
+                  selected
+                    ? 'bg-18-orange text-white shadow-[0_6px_16px_-8px_rgba(243,115,53,0.7)]'
+                    : 'bg-18-bg border border-18-border text-white/75 hover:text-white hover:border-white/30'
+                }`}
+              >
+                {opt}
+              </button>
+            );
+          })}
+          {allowCustom && !showCustom && (
+            <button
+              type="button"
+              onClick={() => setCustomOpen(true)}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold border border-dashed border-18-orange/50 text-18-orange hover:bg-18-orange/10 active:scale-95 transition-all"
+            >
+              {customLabel || '+ New'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {showCustom && (
+        <div className="flex items-center gap-2 mt-2">
+          <input
+            type="text"
+            className="form-input flex-1"
+            placeholder={customPlaceholder || 'Type new value…'}
+            value={valueIsCustom ? (value || '') : ''}
+            autoFocus
+            onChange={(e) => onChange(e.target.value || null)}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setCustomOpen(false);
+              if (valueIsCustom) onChange(null);
+            }}
+            className="p-2 text-white/50 hover:text-white transition-colors"
+            aria-label="Cancel custom entry"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {options.length === 0 && !showCustom && (
+        <p className="text-xs text-white/40 italic mt-1">{emptyText || 'No options available.'}</p>
+      )}
     </div>
   );
 }
