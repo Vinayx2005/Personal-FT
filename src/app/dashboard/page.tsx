@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Bank, Transaction } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDateISO } from '@/lib/utils';
 import {
   TrendingUp,
   TrendingDown,
@@ -112,6 +112,11 @@ export default function DashboardPage() {
   // net (income − expense) across ALL time, keyed by bank_id.
   // Used to show current live balance per bank, independent of the KPI date range.
   const [bankNet, setBankNet] = useState<Record<number, number>>({});
+  // Net movement per bank BEFORE today (client local). Used to render each
+  // bank card's "today's opening" caption — i.e. the balance at 00:00 today,
+  // which naturally rolls forward as the date changes (yesterday's closing
+  // becomes today's opening the instant the client's clock ticks past 00:00).
+  const [bankNetBeforeToday, setBankNetBeforeToday] = useState<Record<number, number>>({});
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DateRange>(defaultRange());
@@ -140,17 +145,27 @@ export default function DashboardPage() {
         // Per-bank net across ALL time (for live bank balances).
         // Transfers ARE included here — moving money between accounts is real
         // movement; only P&L totals exclude them.
+        // Also split out net BEFORE today's date so the bank card can show
+        // "today's opening" — the balance at 00:00 local. When the clock rolls
+        // past midnight, yesterday's transactions fall into the "before today"
+        // bucket and today's opening naturally advances to yesterday's close.
         const { data: allTxData } = await supabase
           .from('transactions')
-          .select('bank_id, transaction_type, amount')
+          .select('bank_id, transaction_type, amount, transaction_date')
           .eq('status', 'posted');
+        const todayIso = formatDateISO(new Date());
         const netByBank: Record<number, number> = {};
+        const netBeforeTodayByBank: Record<number, number> = {};
         (allTxData || []).forEach((t: any) => {
           if (!t.bank_id) return;
           const delta = t.transaction_type === 'income' ? t.amount : -t.amount;
           netByBank[t.bank_id] = (netByBank[t.bank_id] || 0) + delta;
+          if (t.transaction_date && t.transaction_date < todayIso) {
+            netBeforeTodayByBank[t.bank_id] = (netBeforeTodayByBank[t.bank_id] || 0) + delta;
+          }
         });
         setBankNet(netByBank);
+        setBankNetBeforeToday(netBeforeTodayByBank);
 
         let totalIncome = 0;
         let totalExpenses = 0;
@@ -313,6 +328,10 @@ export default function DashboardPage() {
                 const opening = (bank as Bank & { opening_balance?: number }).opening_balance || 0;
                 const net = bankNet[bank.id] || 0;
                 const current = opening + net;
+                // Today's opening = anchor + everything logged before today.
+                // Automatically advances when the clock ticks past midnight.
+                const netBeforeToday = bankNetBeforeToday[bank.id] || 0;
+                const todayOpening = opening + netBeforeToday;
                 return (
                   <div
                     key={bank.id}
@@ -336,7 +355,7 @@ export default function DashboardPage() {
                         {formatCurrency(current)}
                       </p>
                       <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">
-                        Current · opening {formatCurrency(opening)}
+                        Today&apos;s opening {formatCurrency(todayOpening)}
                       </p>
                     </div>
                   </div>
