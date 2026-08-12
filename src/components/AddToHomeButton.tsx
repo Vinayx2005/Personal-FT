@@ -82,11 +82,13 @@ export default function AddToHomeButton() {
       <button
         type="button"
         onClick={handleClick}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-18-orange/15 border border-18-orange/40 text-18-orange hover:bg-18-orange/25 transition-colors shadow-[0_0_20px_-8px_rgba(243,115,53,0.5)]"
+        aria-label="Add to home screen"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-full bg-18-orange/15 border border-18-orange/40 text-18-orange hover:bg-18-orange/25 transition-colors shadow-[0_0_20px_-8px_rgba(243,115,53,0.5)] shrink-0"
         title="Install Personal FT to your home screen"
       >
         <Download size={12} />
-        Add to Home Screen
+        {/* Full label on ≥sm; icon-only on phones so the chat header fits. */}
+        <span className="hidden sm:inline">Add to Home Screen</span>
       </button>
       {showInstructions && (
         <InstructionsModal
