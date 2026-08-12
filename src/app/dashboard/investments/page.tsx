@@ -136,6 +136,10 @@ export default function InvestmentsPage() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUserId) {
+      alert('Still signing you in — please try again in a second.');
+      return;
+    }
     if (!form.name.trim() || !form.amount || form.amount <= 0) {
       alert('Name and amount are required.');
       return;
@@ -231,6 +235,12 @@ export default function InvestmentsPage() {
 
   const handleAddSip = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUserId) {
+      // Rare race — the auth check in the useEffect hasn't finished yet.
+      // Otherwise we'd hit an unhelpful RLS error from `user_id: null`.
+      alert('Still signing you in — please try again in a second.');
+      return;
+    }
     if (!sipForm.name.trim() || !sipForm.amount || sipForm.amount <= 0) {
       alert('Name and amount are required.');
       return;

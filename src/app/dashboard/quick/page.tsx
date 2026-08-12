@@ -369,7 +369,23 @@ export default function QuickChatPage() {
       return;
     }
 
-    setPreview(msg.id, { status: 'confirmed', editing: false });
+    // Atomic check-and-mark: if a second click arrives before React re-renders
+    // and hides the buttons, we'd otherwise insert the same transaction twice.
+    // Using setMessages' callback form lets us read the LATEST state (not the
+    // stale one captured in `msg`) and abort if the preview is already being
+    // processed.
+    let alreadySubmitting = false;
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== msg.id || m.role !== 'bot' || m.kind !== 'preview') return m;
+        if (m.status !== 'active') {
+          alreadySubmitting = true;
+          return m;
+        }
+        return { ...m, status: 'confirmed', editing: false };
+      })
+    );
+    if (alreadySubmitting) return;
 
     try {
       // Resolve / create the category.
