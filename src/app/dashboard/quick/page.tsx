@@ -404,7 +404,14 @@ export default function QuickChatPage() {
         .eq('is_active', true);
       if (banksErr) throw banksErr;
       const kw = draft.bank!.toLowerCase();
-      const matches = (banks || []).filter((b) => b.bank_name.toLowerCase().includes(kw));
+      // Exact match wins over substring match — otherwise picking "SBI" from
+      // the chip selector fails as "ambiguous" when the user also has
+      // "SBI Credit Card". The user's intent is the literal chip they tapped.
+      const banksList = banks || [];
+      const exact = banksList.find((b) => b.bank_name.toLowerCase() === kw);
+      const matches = exact
+        ? [exact]
+        : banksList.filter((b) => b.bank_name.toLowerCase().includes(kw));
       if (matches.length === 0) {
         // Roll back to active so user can edit.
         setPreview(msg.id, { status: 'active' });
@@ -544,7 +551,7 @@ export default function QuickChatPage() {
             rows={1}
             className="flex-1 min-w-0 resize-none bg-18-surface border border-18-border rounded-2xl px-3.5 md:px-4 py-2.5 md:py-3 text-[15px] md:text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-18-orange transition-colors max-h-32"
           />
-          {inputText.trim().length > 0 ? (
+          {inputText.trim().length > 0 && voiceState !== 'listening' ? (
             <button
               type="button"
               onClick={handleSendText}
@@ -809,6 +816,12 @@ function EditForm(props: {
   onDone: () => void;
 }) {
   const { draft, bankNames, categoryNames } = props;
+  // Track the raw text separately from the parsed number so typing "1." or
+  // "1.50" doesn't get canonicalised back to "1" or "1.5" by parseFloat
+  // round-tripping through draft.amount.
+  const [amountRaw, setAmountRaw] = useState<string>(
+    draft.amount === null ? '' : String(draft.amount)
+  );
   return (
     <div>
       <p className="text-xs text-white/70 mb-2">Edit the details, then hit Done:</p>
@@ -820,14 +833,15 @@ function EditForm(props: {
             inputMode="decimal"
             className="form-input mt-1"
             placeholder="0.00"
-            value={draft.amount === null ? '' : String(draft.amount)}
+            value={amountRaw}
             onChange={(e) => {
               const raw = e.target.value;
+              // Allow empty OR a valid partial decimal ("", "1", "1.", "1.5").
+              if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
+              setAmountRaw(raw);
               if (raw === '') {
                 props.onChange({ amount: null });
-                return;
-              }
-              if (/^\d*\.?\d*$/.test(raw)) {
+              } else {
                 const n = parseFloat(raw);
                 props.onChange({ amount: isNaN(n) ? null : n });
               }
