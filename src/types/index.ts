@@ -40,6 +40,34 @@ export interface Investment {
   updated_at: string;
 }
 
+export type SipFrequency = 'monthly' | 'weekly' | 'quarterly';
+
+export const SIP_FREQUENCY_LABELS: Record<SipFrequency, string> = {
+  monthly: 'Monthly',
+  weekly: 'Weekly',
+  quarterly: 'Quarterly',
+};
+
+export interface Sip {
+  id: number;
+  user_id: string;
+  investment_id: number | null;
+  name: string;
+  amount: number;
+  frequency: SipFrequency;
+  debit_day: number;
+  source_bank_id: number;
+  category_id: number | null;
+  start_date: string;
+  end_date: string | null;
+  next_debit_date: string;
+  is_active: boolean;
+  last_debited_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface BankBalanceHistory {
   id: number;
   bank_id: number;

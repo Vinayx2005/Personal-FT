@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/trial-reminders",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/sip-debit",
+      "schedule": "0 3 * * *"
     }
   ]
 }
