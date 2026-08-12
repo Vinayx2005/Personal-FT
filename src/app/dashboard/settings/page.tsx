@@ -131,13 +131,23 @@ export default function SettingsPage() {
     try {
       if (editingBankId) {
         const existing = banks.find((b) => b.id === editingBankId);
-        const prevBalance = existing?.opening_balance ?? 0;
-        const balanceChanged = prevBalance !== bankForm.opening_balance;
+        const prevOpening = existing?.opening_balance ?? 0;
+        const net = bankNet[editingBankId] || 0;
+        const prevCurrent = prevOpening + net;
+
+        // The field is bound to `bankForm.opening_balance` for legacy reasons
+        // but in edit mode represents the DESIRED CURRENT balance. Back-compute
+        // the opening so opening + net = desiredCurrent. The transaction total
+        // (net) is not touched, so no history is corrupted.
+        const desiredCurrent = bankForm.opening_balance;
+        const newOpening = desiredCurrent - net;
+        const balanceChanged = prevCurrent !== desiredCurrent;
 
         const { data, error } = await supabase
           .from('banks')
           .update({
-            ...bankForm,
+            bank_name: bankForm.bank_name,
+            opening_balance: newOpening,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingBankId)
@@ -146,10 +156,13 @@ export default function SettingsPage() {
         if (error) throw error;
 
         if (balanceChanged) {
+          // bank_balance_history records the OPENING change (that's what the
+          // schema tracks). The audit log message frames it as a current-
+          // balance correction, which is how the user thinks about it.
           const { error: histErr } = await supabase.from('bank_balance_history').insert({
             bank_id: editingBankId,
-            previous_balance: prevBalance,
-            new_balance: bankForm.opening_balance,
+            previous_balance: prevOpening,
+            new_balance: newOpening,
             reason: balanceChangeReason.trim() || null,
             changed_by: currentUser?.id,
           });
@@ -164,9 +177,9 @@ export default function SettingsPage() {
             action: 'update',
             table_name: 'banks',
             record_id: editingBankId,
-            description: `Opening balance changed for ${bankForm.bank_name}: ${formatCurrency(prevBalance)} → ${formatCurrency(bankForm.opening_balance)}${balanceChangeReason ? ` (${balanceChangeReason})` : ''}`,
-            old_values: { opening_balance: prevBalance },
-            new_values: { opening_balance: bankForm.opening_balance, reason: balanceChangeReason },
+            description: `Corrected ${bankForm.bank_name} balance: ${formatCurrency(prevCurrent)} → ${formatCurrency(desiredCurrent)}${balanceChangeReason ? ` (${balanceChangeReason})` : ''}`,
+            old_values: { opening_balance: prevOpening, current_balance: prevCurrent },
+            new_values: { opening_balance: newOpening, current_balance: desiredCurrent, reason: balanceChangeReason },
           });
         } else {
           logAction({
@@ -174,7 +187,7 @@ export default function SettingsPage() {
             table_name: 'banks',
             record_id: editingBankId,
             description: `Updated bank details: ${bankForm.bank_name}`,
-            new_values: bankForm,
+            new_values: { bank_name: bankForm.bank_name },
           });
         }
 
@@ -215,11 +228,20 @@ export default function SettingsPage() {
   };
 
   const startEditBank = (bank: Bank) => {
+    // For an existing bank, the field represents the CURRENT balance the user
+    // sees on their statement today — not the historical opening. This makes
+    // corrections one-step: "my card says -₹2,000 now" → enter -2000. On save
+    // we back-compute the opening so opening + net = the number typed here.
+    // The `bankForm.opening_balance` slot holds this desired-current value in
+    // edit mode (its name is legacy; interpret contextually via editingBankId).
+    const opening = bank.opening_balance || 0;
+    const net = bankNet[bank.id] || 0;
+    const current = opening + net;
     setBankForm({
       bank_name: bank.bank_name,
-      opening_balance: bank.opening_balance || 0,
+      opening_balance: current,
     });
-    setOpeningBalanceInput(bank.opening_balance ? String(bank.opening_balance) : '');
+    setOpeningBalanceInput(current !== 0 ? String(current) : '');
     setEditingBankId(bank.id);
     setBalanceChangeReason('');
     setShowBankForm(true);
@@ -535,7 +557,9 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="form-group md:col-span-2">
-                  <label className="form-label">Opening Balance (₹)</label>
+                  <label className="form-label">
+                    {editingBankId ? 'Current Balance (₹)' : 'Opening Balance (₹)'}
+                  </label>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -544,8 +568,12 @@ export default function SettingsPage() {
                     value={openingBalanceInput}
                     onChange={(e) => {
                       const raw = e.target.value;
-                      // Allow empty OR a valid partial decimal ("", "1", "1.", "1.5")
-                      if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                      // Allow empty OR a valid partial decimal, with an optional
+                      // leading `-` for credit cards / accounts that start in
+                      // the red. "-", "-1", "-1.", "-.5", "1.5" all accepted
+                      // during typing; parseFloat treats a lone "-" as NaN so
+                      // we fall through to 0 until a digit is entered.
+                      if (raw === '' || /^-?\d*\.?\d*$/.test(raw)) {
                         setOpeningBalanceInput(raw);
                         setBankForm({
                           ...bankForm,
@@ -555,14 +583,22 @@ export default function SettingsPage() {
                     }}
                   />
                   <p className="text-xs text-18-dark-text mt-1">
-                    Starting cash in this bank. Used by the Dashboard&apos;s Current Balance.
+                    {editingBankId
+                      ? "What your statement shows right now. We'll adjust the opening balance so the math lines up — transactions aren't touched."
+                      : 'Starting cash in this account. Enter a negative value for credit cards or any account that starts in the red.'}
                   </p>
                 </div>
-                {editingBankId &&
-                  bankForm.opening_balance !==
-                    (banks.find((b) => b.id === editingBankId)?.opening_balance || 0) && (
+                {editingBankId && (() => {
+                  // Show the reason field only when the desired current differs
+                  // from what the app currently computes (opening + net).
+                  const existing = banks.find((b) => b.id === editingBankId);
+                  const existingOpening = existing?.opening_balance || 0;
+                  const net = bankNet[editingBankId] || 0;
+                  const existingCurrent = existingOpening + net;
+                  if (bankForm.opening_balance === existingCurrent) return null;
+                  return (
                     <div className="form-group md:col-span-2">
-                      <label className="form-label">Reason for balance change</label>
+                      <label className="form-label">Reason for balance correction</label>
                       <input
                         type="text"
                         className="form-input"
@@ -574,7 +610,8 @@ export default function SettingsPage() {
                         Logged in the balance history for this bank.
                       </p>
                     </div>
-                  )}
+                  );
+                })()}
               </div>
 
               <button type="submit" className="btn btn-primary">
