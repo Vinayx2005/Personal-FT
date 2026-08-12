@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User, Bank, Category, BankBalanceHistory } from '@/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { Plus, Edit2, Trash2, X, History, AlertTriangle, Lock, Eye, EyeOff, Check } from 'lucide-react';
 import { logAction } from '@/lib/auditLog';
@@ -17,6 +17,10 @@ export default function SettingsPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   // net (income − expense) across all time, keyed by bank_id — for live balance display
   const [bankNet, setBankNet] = useState<Record<number, number>>({});
+  // Net movement per bank BEFORE today (client local). Used to render the
+  // "today's opening" caption on each bank row — auto-rolls at midnight
+  // because yesterday's transactions fall into this bucket at 00:00.
+  const [bankNetBeforeToday, setBankNetBeforeToday] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [showBankForm, setShowBankForm] = useState(false);
 
@@ -79,18 +83,26 @@ export default function SettingsPage() {
         const { data: banksData } = await supabase.from('banks').select('*');
         const { data: categoriesData } = await supabase.from('categories').select('*');
 
-        // Per-bank net across all time (transfers included — real money movement)
+        // Per-bank net across all time (transfers included — real money movement).
+        // Also compute the subset dated BEFORE today so each bank row can show
+        // "today's opening" (anchor + everything before today = balance at 00:00).
         const { data: allTxData } = await supabase
           .from('transactions')
-          .select('bank_id, transaction_type, amount')
+          .select('bank_id, transaction_type, amount, transaction_date')
           .eq('status', 'posted');
+        const todayIso = formatDateISO(new Date());
         const net: Record<number, number> = {};
+        const netBeforeToday: Record<number, number> = {};
         (allTxData || []).forEach((t: any) => {
           if (!t.bank_id) return;
           const delta = t.transaction_type === 'income' ? t.amount : -t.amount;
           net[t.bank_id] = (net[t.bank_id] || 0) + delta;
+          if (t.transaction_date && t.transaction_date < todayIso) {
+            netBeforeToday[t.bank_id] = (netBeforeToday[t.bank_id] || 0) + delta;
+          }
         });
         setBankNet(net);
+        setBankNetBeforeToday(netBeforeToday);
 
         setBanks(banksData || []);
         setExpenseCategories((categoriesData || []).filter((c: Category) => c.type === 'expense'));
@@ -628,6 +640,12 @@ export default function SettingsPage() {
                 const opening = bank.opening_balance || 0;
                 const net = bankNet[bank.id] || 0;
                 const current = opening + net;
+                // Today's opening = anchor + everything before today. The ±
+                // beside it is only today's movement (current − todayOpening),
+                // so the two numbers add up to the big "current" figure.
+                const netBeforeToday = bankNetBeforeToday[bank.id] || 0;
+                const todayOpening = opening + netBeforeToday;
+                const todayChange = current - todayOpening;
                 return (
                 <div key={bank.id} className="pb-4 border-b border-18-border last:border-b-0">
                   <div className="flex flex-wrap justify-between items-center gap-3">
@@ -641,13 +659,13 @@ export default function SettingsPage() {
                           {formatCurrency(current)}
                         </p>
                         <p className="text-[10px] text-white/40 mt-0.5">
-                          Opening {formatCurrency(opening)}
-                          {net !== 0 && (
+                          Today&apos;s opening {formatCurrency(todayOpening)}
+                          {todayChange !== 0 && (
                             <>
                               {' · '}
-                              <span className={net > 0 ? 'text-green-400' : 'text-red-400'}>
-                                {net > 0 ? '+' : ''}
-                                {formatCurrency(net)}
+                              <span className={todayChange > 0 ? 'text-green-400' : 'text-red-400'}>
+                                {todayChange > 0 ? '+' : ''}
+                                {formatCurrency(todayChange)}
                               </span>
                             </>
                           )}
