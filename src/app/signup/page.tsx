@@ -45,8 +45,8 @@ export default function SignupPage() {
 
   if (needsVerification) {
     return (
-      <div className="relative min-h-screen bg-18-bg text-white flex items-center justify-center px-4 font-poppins overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-glow-hero" aria-hidden />
+      <div className="relative min-h-[100dvh] bg-18-bg text-white flex items-center justify-center px-4 font-poppins">
+        <div className="pointer-events-none absolute inset-0 bg-glow-hero overflow-hidden" aria-hidden />
         <div className="relative z-10 w-full max-w-md bg-18-surface border border-18-border rounded-2xl p-10 text-center shadow-2xl">
           <div className="bg-18-orange/15 border border-18-orange/40 w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-6">
             <span className="text-3xl">📬</span>
@@ -68,8 +68,11 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-18-bg text-white flex items-center justify-center px-4 py-8 font-poppins overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-glow-hero" aria-hidden />
+    // See login/page.tsx for the RCA — min-h-[100dvh] + no overflow-hidden
+    // on the flex ancestor stops iOS from re-blurring inputs on every
+    // keystroke inside the installed PWA.
+    <div className="relative min-h-[100dvh] bg-18-bg text-white flex items-center justify-center px-4 py-8 font-poppins">
+      <div className="pointer-events-none absolute inset-0 bg-glow-hero overflow-hidden" aria-hidden />
 
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">

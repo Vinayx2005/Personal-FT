@@ -34,8 +34,8 @@ export default function ForgotPasswordPage() {
   };
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <div className="relative min-h-screen bg-18-bg text-white flex items-center justify-center px-4 py-8 font-poppins overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-glow-hero" aria-hidden />
+    <div className="relative min-h-[100dvh] bg-18-bg text-white flex items-center justify-center px-4 py-8 font-poppins">
+      <div className="pointer-events-none absolute inset-0 bg-glow-hero overflow-hidden" aria-hidden />
       <div className="relative z-10 w-full max-w-md">{children}</div>
     </div>
   );

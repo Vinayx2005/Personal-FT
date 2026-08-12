@@ -114,29 +114,53 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
     // Subscribe FIRST so we don't miss the SIGNED_IN event that fires as the
     // Supabase SDK parses `#access_token=...` from the OAuth callback URL.
+    // We deliberately do NOT redirect on SIGNED_OUT here — that fires
+    // spuriously on iOS PWA cold starts before storage has been read, and
+    // we'd rather rely on the retry loop below to be authoritative.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) loadProfile(session.user);
     });
 
-    // Then check whatever's already in storage/cookie. Retry a few times to
-    // give the hash parse a chance to complete before we bounce to landing.
+    // Then check whatever's already in storage/cookie. Retry generously —
+    // on a cold PWA start over mobile data, Supabase's session-restore +
+    // token refresh round trip can take 2-4s. The old 1.2s window bounced
+    // users to landing prematurely, which the user perceives as "auto
+    // logout". Now: 30 attempts × 200 ms = 6s ceiling.
     (async () => {
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 30; i++) {
         if (!mounted || handled) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           loadProfile(session.user);
           return;
         }
-        await new Promise((r) => setTimeout(r, 150));
+        await new Promise((r) => setTimeout(r, 200));
       }
       if (!mounted || handled) return;
       router.push('/');
     })();
 
+    // When the PWA is backgrounded on iOS and reopened hours later, the
+    // access token may have expired without ever hitting the auto-refresh
+    // interval (browsers throttle background timers). Poke Supabase on
+    // every visibility-change to foreground so it refreshes proactively.
+    // Nothing to do if the tab is going hidden — only when it comes back.
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!mounted) return;
+        if (session?.user && !handled) loadProfile(session.user);
+        // If the refresh failed and there's no session, DON'T bounce here —
+        // the user may be reading the current page; let the next
+        // network-touching action surface the auth error naturally.
+      });
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [router]);
 

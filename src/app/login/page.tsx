@@ -37,8 +37,15 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-18-bg text-white flex items-center justify-center px-4 py-8 font-poppins overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-glow-hero" aria-hidden />
+    // NOTE: `min-h-[100dvh]` (dynamic viewport height) so iOS mobile Safari
+    // shrinks this container when the on-screen keyboard opens instead of
+    // keeping it at the full pre-keyboard height. Combined with removing
+    // `overflow-hidden` from the outer wrapper, this stops the focus-loss/
+    // refocus cycle that made the keyboard flicker on every keystroke inside
+    // the installed PWA (iOS's "scroll input into view" was fighting a
+    // clipped 100vh ancestor).
+    <div className="relative min-h-[100dvh] bg-18-bg text-white flex items-center justify-center px-4 py-8 font-poppins">
+      <div className="pointer-events-none absolute inset-0 bg-glow-hero overflow-hidden" aria-hidden />
 
       <div className="relative z-10 w-full max-w-md">
         <div className="text-center mb-8">

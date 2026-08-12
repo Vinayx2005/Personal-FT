@@ -19,7 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-const ROTATING_WORDS = ['Simple', 'Clear', 'Yours', 'Easy', 'Human'];
+const ROTATING_WORDS = ['Track', 'Plan', 'Grow'];
 
 export default function LandingPage() {
   const router = useRouter();
@@ -121,17 +121,17 @@ export default function LandingPage() {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-black leading-[1.05] tracking-tight mb-8">
-            <span className="text-white">Personal Finance,</span>
+            <span className="text-white">Stop Wondering Where</span>
             <br />
-            <span className="text-white">Finally Made </span>
+            <span className="text-white">Your Money Goes: </span>
             <span className="hero-rotator text-18-orange italic inline-block align-baseline min-w-[4.5ch] md:min-w-[6ch] text-left">
               <span key={wordIdx}>{ROTATING_WORDS[wordIdx]}.</span>
             </span>
           </h1>
 
           <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Stop wondering where your money goes. Track spending with voice notes,
-            understand your habits, and take control — in under 5 minutes a day.
+            Track your spending with voice notes, understand your habits, and
+            take control of your money — in under 5 minutes a day.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
@@ -299,8 +299,8 @@ export default function LandingPage() {
               },
               {
                 icon: LineChart,
-                title: 'Real dashboards',
-                body: 'Monthly P&L, category breakdown, streaks. All the visibility, none of the guilt.',
+                title: 'Real-time reports',
+                body: 'Get actionable feedback, category breakdown, and streaks — inputs that build better finance discipline.',
                 gradient: 'from-cyan-500 to-blue-500',
               },
             ].map((f, i) => (
@@ -344,12 +344,11 @@ export default function LandingPage() {
               </div>
               <ul className="space-y-4">
                 {[
-                  'Unsure where your salary goes',
-                  'Manual finance tracking',
+                  'Guessing where your money went',
                   'Unnecessary spending',
-                  'No financial visibility',
-                  'Budgeting feels difficult',
-                  'Financial stress',
+                  'No financial tracking',
+                  'Overspending without realizing',
+                  'Forgetting small purchases',
                 ].map((t) => (
                   <li key={t} className="flex items-start gap-3">
                     <XIcon className="text-gray-600 mt-0.5 flex-shrink-0" size={16} />
@@ -368,9 +367,8 @@ export default function LandingPage() {
               <ul className="space-y-4">
                 {[
                   'Know exactly where every rupee goes',
-                  'Track with voice notes',
                   'Reduce wasteful expenses',
-                  'Monthly reports & insights',
+                  'Track with voice notes',
                   'Stay on budget',
                   'Financial clarity & confidence',
                 ].map((t) => (
@@ -656,7 +654,7 @@ export default function LandingPage() {
           </h2>
           <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
             Personal finance doesn&apos;t have to be complicated. Build better habits,
-            understand your spending, and take control — in just a few minutes each day.
+            understand your spending, and take control — in just 5 minutes each day.
           </p>
           <Link
             href="/signup"
