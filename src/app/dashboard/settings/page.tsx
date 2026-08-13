@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User, Bank, Category, BankBalanceHistory } from '@/types';
 import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Plus, Edit2, Trash2, X, History, AlertTriangle, Lock, Eye, EyeOff, Check } from 'lucide-react';
 import { logAction } from '@/lib/auditLog';
 
 export default function SettingsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  // Bump to force refetch. Wired to visibilitychange + route entry so bank
+  // balances refresh after the user adds an expense elsewhere and returns.
+  const [refreshTick, setRefreshTick] = useState(0);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -116,6 +120,16 @@ export default function SettingsPage() {
     };
 
     fetchData();
+  }, [refreshTick, pathname]);
+
+  // Refetch when tab regains focus so bank balances stay current after the
+  // user logs an expense in another tab or backgrounds the PWA.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setRefreshTick((t) => t + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   const resetBankForm = () => {
@@ -648,49 +662,51 @@ export default function SettingsPage() {
                 const todayChange = current - todayOpening;
                 return (
                 <div key={bank.id} className="pb-4 border-b border-18-border last:border-b-0">
-                  <div className="flex flex-wrap justify-between items-center gap-3">
-                    <div className="min-w-0">
-                      <p className="font-bold text-white truncate">{bank.bank_name}</p>
-                    </div>
-                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">
-                      <div className="text-right">
-                        <p className="text-xs text-18-dark-text uppercase font-semibold">Current</p>
-                        <p className={`font-bold ${current < 0 ? 'text-red-300' : 'text-white'}`}>
-                          {formatCurrency(current)}
-                        </p>
-                        <p className="text-[10px] text-white/40 mt-0.5">
-                          Today&apos;s opening {formatCurrency(todayOpening)}
-                          {todayChange !== 0 && (
-                            <>
-                              {' · '}
-                              <span className={todayChange > 0 ? 'text-green-400' : 'text-red-400'}>
-                                {todayChange > 0 ? '+' : ''}
-                                {formatCurrency(todayChange)}
-                              </span>
-                            </>
-                          )}
-                        </p>
-                      </div>
+                  {/* Row 1: name (left) + big current balance (right) */}
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="text-[15px] font-bold text-white truncate">{bank.bank_name}</p>
+                    <p className={`text-lg md:text-xl font-bold whitespace-nowrap tabular-nums ${current < 0 ? 'text-red-300' : 'text-white'}`}>
+                      {formatCurrency(current)}
+                    </p>
+                  </div>
+                  {/* Row 2: caption (left, wraps) + inline action icons (right) */}
+                  <div className="flex items-center justify-between gap-3 mt-1">
+                    <p className="text-[11px] text-white/50 min-w-0 flex-1 truncate">
+                      Today&apos;s opening {formatCurrency(todayOpening)}
+                      {todayChange !== 0 && (
+                        <>
+                          {' · '}
+                          <span className={todayChange > 0 ? 'text-green-400' : 'text-red-400'}>
+                            {todayChange > 0 ? '+' : ''}
+                            {formatCurrency(todayChange)}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => toggleBankHistory(bank.id)}
-                        className={`hover:text-18-orange p-2 -m-2 ${
+                        className={`hover:text-18-orange p-2 -m-1 transition-colors ${
                           historyOpenFor === bank.id ? 'text-18-orange' : 'text-18-dark-text'
                         }`}
                         title="Balance history"
+                        aria-label="Balance history"
                       >
                         <History size={16} />
                       </button>
                       <button
                         onClick={() => startEditBank(bank)}
-                        className="text-18-dark-text hover:text-18-orange p-2 -m-2"
+                        className="text-18-dark-text hover:text-18-orange p-2 -m-1 transition-colors"
                         title="Edit bank"
+                        aria-label="Edit bank"
                       >
                         <Edit2 size={16} />
                       </button>
                       <button
                         onClick={() => handleDeleteBank(bank.id)}
-                        className="text-red-400 hover:text-red-300 p-2 -m-2"
+                        className="text-red-400 hover:text-red-300 p-2 -m-1 transition-colors"
                         title="Delete bank"
+                        aria-label="Delete bank"
                       >
                         <Trash2 size={16} />
                       </button>

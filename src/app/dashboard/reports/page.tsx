@@ -1145,79 +1145,157 @@ export default function ReportsPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-[10px] uppercase tracking-widest text-white/40 border-b border-18-border/60">
-                  <th className="text-left px-3 py-2 font-bold">Category</th>
-                  <th className="text-right px-3 py-2 font-bold">Budget</th>
-                  <th className="text-right px-3 py-2 font-bold">Actual</th>
-                  <th className="text-right px-3 py-2 font-bold">Variance</th>
-                  <th className="px-3 py-2 font-bold w-[180px]">Used</th>
-                </tr>
-              </thead>
-              <tbody>
-                {budgetVsActual.map((r) => {
-                  const variance = r.budget - r.actual;
-                  const pct = r.budget > 0 ? (r.actual / r.budget) * 100 : 0;
-                  const over = r.budget > 0 && r.actual > r.budget;
-                  const noBudget = r.budget === 0;
-                  const barColor = over ? 'bg-rose-500' : pct >= 85 ? 'bg-amber-500' : 'bg-emerald-500';
-                  return (
-                    <tr key={r.name} className="border-b border-18-border/40">
-                      <td className="px-3 py-3 text-white font-semibold">{r.name}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-white/80">
-                        {noBudget ? <span className="text-white/30">—</span> : formatCurrency(r.budget)}
-                      </td>
-                      <td className={`px-3 py-3 text-right tabular-nums ${over ? 'text-rose-400 font-semibold' : 'text-white/80'}`}>
-                        {formatCurrency(r.actual)}
-                      </td>
-                      <td className={`px-3 py-3 text-right tabular-nums font-semibold ${
-                        noBudget ? 'text-white/30' : variance >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}>
+          <>
+            {/* Mobile: stacked card list per category. Numbers laid out in a
+                small 2-col grid so budget/actual line up visually without a
+                horizontally-scrolling table. */}
+            <ul className="md:hidden divide-y divide-18-border/50">
+              {budgetVsActual.map((r) => {
+                const variance = r.budget - r.actual;
+                const pct = r.budget > 0 ? (r.actual / r.budget) * 100 : 0;
+                const over = r.budget > 0 && r.actual > r.budget;
+                const noBudget = r.budget === 0;
+                const barColor = over ? 'bg-rose-500' : pct >= 85 ? 'bg-amber-500' : 'bg-emerald-500';
+                return (
+                  <li key={r.name} className="py-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-[15px] font-semibold text-white truncate">{r.name}</span>
+                      <span
+                        className={`text-[13px] font-semibold tabular-nums whitespace-nowrap ${
+                          noBudget ? 'text-white/30' : variance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        }`}
+                      >
                         {noBudget ? '—' : `${variance >= 0 ? '+' : '−'}${formatCurrency(Math.abs(variance))}`}
-                      </td>
-                      <td className="px-3 py-3">
-                        {noBudget ? (
-                          <span className="text-[10px] text-white/30 italic">No budget set</span>
-                        ) : (
-                          <div>
-                            <div className="h-2 bg-18-bg rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${barColor} rounded-full transition-all`}
-                                style={{ width: `${Math.min(100, pct)}%` }}
-                              />
-                            </div>
-                            <p className={`text-[10px] mt-1 font-semibold ${over ? 'text-rose-400' : 'text-white/50'}`}>
-                              {pct.toFixed(0)}% used
-                            </p>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                {(() => {
-                  const totalBudget = budgetVsActual.reduce((s, r) => s + r.budget, 0);
-                  const totalActual = budgetVsActual.reduce((s, r) => s + r.actual, 0);
-                  const totalVar = totalBudget - totalActual;
-                  return (
-                    <tr className="bg-18-bg/60 font-bold">
-                      <td className="px-3 py-3 text-white uppercase text-xs tracking-wider">Total</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-white">{formatCurrency(totalBudget)}</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-white">{formatCurrency(totalActual)}</td>
-                      <td className={`px-3 py-3 text-right tabular-nums ${totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-white/50">
+                      <span>
+                        Budget{' '}
+                        <span className="tabular-nums text-white/70">
+                          {noBudget ? '—' : formatCurrency(r.budget)}
+                        </span>
+                      </span>
+                      <span className="text-white/25">·</span>
+                      <span>
+                        Actual{' '}
+                        <span className={`tabular-nums ${over ? 'text-rose-400 font-semibold' : 'text-white/70'}`}>
+                          {formatCurrency(r.actual)}
+                        </span>
+                      </span>
+                    </div>
+                    {!noBudget && (
+                      <div className="mt-2">
+                        <div className="h-2 bg-18-bg rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${barColor} rounded-full transition-all`}
+                            style={{ width: `${Math.min(100, pct)}%` }}
+                          />
+                        </div>
+                        <p className={`text-[10px] mt-1 font-semibold ${over ? 'text-rose-400' : 'text-white/50'}`}>
+                          {pct.toFixed(0)}% used
+                        </p>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+              {(() => {
+                const totalBudget = budgetVsActual.reduce((s, r) => s + r.budget, 0);
+                const totalActual = budgetVsActual.reduce((s, r) => s + r.actual, 0);
+                const totalVar = totalBudget - totalActual;
+                return (
+                  <li className="pt-3 bg-18-bg/60 rounded-lg px-3 py-3">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs uppercase tracking-wider font-bold text-white">Total</span>
+                      <span className={`text-sm font-bold tabular-nums ${totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                         {totalVar >= 0 ? '+' : '−'}{formatCurrency(Math.abs(totalVar))}
-                      </td>
-                      <td />
-                    </tr>
-                  );
-                })()}
-              </tfoot>
-            </table>
-          </div>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-white/60">
+                      <span>Budget <span className="tabular-nums text-white">{formatCurrency(totalBudget)}</span></span>
+                      <span className="text-white/25">·</span>
+                      <span>Actual <span className="tabular-nums text-white">{formatCurrency(totalActual)}</span></span>
+                    </div>
+                  </li>
+                );
+              })()}
+            </ul>
+
+            {/* Desktop table (≥ md) — unchanged */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-widest text-white/40 border-b border-18-border/60">
+                    <th className="text-left px-3 py-2 font-bold">Category</th>
+                    <th className="text-right px-3 py-2 font-bold">Budget</th>
+                    <th className="text-right px-3 py-2 font-bold">Actual</th>
+                    <th className="text-right px-3 py-2 font-bold">Variance</th>
+                    <th className="px-3 py-2 font-bold w-[180px]">Used</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {budgetVsActual.map((r) => {
+                    const variance = r.budget - r.actual;
+                    const pct = r.budget > 0 ? (r.actual / r.budget) * 100 : 0;
+                    const over = r.budget > 0 && r.actual > r.budget;
+                    const noBudget = r.budget === 0;
+                    const barColor = over ? 'bg-rose-500' : pct >= 85 ? 'bg-amber-500' : 'bg-emerald-500';
+                    return (
+                      <tr key={r.name} className="border-b border-18-border/40">
+                        <td className="px-3 py-3 text-white font-semibold">{r.name}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-white/80">
+                          {noBudget ? <span className="text-white/30">—</span> : formatCurrency(r.budget)}
+                        </td>
+                        <td className={`px-3 py-3 text-right tabular-nums ${over ? 'text-rose-400 font-semibold' : 'text-white/80'}`}>
+                          {formatCurrency(r.actual)}
+                        </td>
+                        <td className={`px-3 py-3 text-right tabular-nums font-semibold ${
+                          noBudget ? 'text-white/30' : variance >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                        }`}>
+                          {noBudget ? '—' : `${variance >= 0 ? '+' : '−'}${formatCurrency(Math.abs(variance))}`}
+                        </td>
+                        <td className="px-3 py-3">
+                          {noBudget ? (
+                            <span className="text-[10px] text-white/30 italic">No budget set</span>
+                          ) : (
+                            <div>
+                              <div className="h-2 bg-18-bg rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${barColor} rounded-full transition-all`}
+                                  style={{ width: `${Math.min(100, pct)}%` }}
+                                />
+                              </div>
+                              <p className={`text-[10px] mt-1 font-semibold ${over ? 'text-rose-400' : 'text-white/50'}`}>
+                                {pct.toFixed(0)}% used
+                              </p>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  {(() => {
+                    const totalBudget = budgetVsActual.reduce((s, r) => s + r.budget, 0);
+                    const totalActual = budgetVsActual.reduce((s, r) => s + r.actual, 0);
+                    const totalVar = totalBudget - totalActual;
+                    return (
+                      <tr className="bg-18-bg/60 font-bold">
+                        <td className="px-3 py-3 text-white uppercase text-xs tracking-wider">Total</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-white">{formatCurrency(totalBudget)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-white">{formatCurrency(totalActual)}</td>
+                        <td className={`px-3 py-3 text-right tabular-nums ${totalVar >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {totalVar >= 0 ? '+' : '−'}{formatCurrency(Math.abs(totalVar))}
+                        </td>
+                        <td />
+                      </tr>
+                    );
+                  })()}
+                </tfoot>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

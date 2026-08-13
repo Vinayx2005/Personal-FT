@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Category, Bank } from '@/types';
 import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
-import { Plus, Edit2, Trash2, X, Upload, Download, Paperclip, FileText } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Upload, Download, Paperclip, FileText, Check } from 'lucide-react';
 import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
 import { logAction } from '@/lib/auditLog';
 import CategorySelect from '@/components/CategorySelect';
@@ -41,6 +41,31 @@ export default function ExpensesPage() {
   const [bankFilter, setBankFilter] = useState<Set<number>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [viewing, setViewing] = useState<{ expense: Transaction } | null>(null);
+  // Mobile is in "select mode" any time at least one row is selected. A
+  // long-press on any row enters this mode by selecting that row; tapping
+  // further rows toggles their selection instead of opening the detail.
+  const selectionMode = selectedIds.size > 0;
+
+  // Long-press bookkeeping. `pressTimerRef` holds the pending 500 ms
+  // timeout; `longPressFiredRef` lets us swallow the click event that
+  // fires immediately after a long-press so it doesn't ALSO open the
+  // detail modal. `pressStartRef` is used to cancel the long-press if
+  // the user starts scrolling instead.
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+  const pressStartRef = useRef({ x: 0, y: 0 });
+  const LONG_PRESS_MS = 500;
+  const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
+
+  const cancelLongPress = () => {
+    if (pressTimerRef.current) {
+      clearTimeout(pressTimerRef.current);
+      pressTimerRef.current = null;
+    }
+  };
+  // Clean up any pending timer on unmount so a stray fire doesn't
+  // touch state on a torn-down component.
+  useEffect(() => () => cancelLongPress(), []);
 
   const openView = (expense: Transaction) => {
     setViewing({ expense });
@@ -165,6 +190,24 @@ export default function ExpensesPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Populate the form with an existing expense and flip the page into edit
+  // mode. Used from the desktop table row, the mobile card list (via the
+  // detail modal), and the detail modal's action footer.
+  const startEditExpense = (expense: Transaction) => {
+    setForm({
+      description: expense.description || '',
+      amount: expense.amount,
+      bank_id: expense.bank_id,
+      category_id: expense.category_id,
+      transaction_date: expense.transaction_date,
+      notes: expense.notes || '',
+      receipt_url: expense.receipt_url || null,
+    });
+    setEditingId(expense.id);
+    setShowForm(true);
+    setViewing(null); // close the detail modal if the edit was launched from it
   };
 
   const handleDelete = async (id: number) => {
@@ -784,127 +827,262 @@ export default function ExpensesPage() {
                   <span className="font-bold text-white">{formatCurrency(monthTotal)}</span>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="w-8">
-                        {(() => {
-                          const ids = g.items.map((x) => x.id);
-                          const total = ids.length;
-                          const selectedInGroup = ids.filter((id) => selectedIds.has(id)).length;
-                          const allChecked = total > 0 && selectedInGroup === total;
-                          const partial = selectedInGroup > 0 && !allChecked;
-                          return (
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-red-600 cursor-pointer"
-                              title={allChecked ? 'Deselect all in this month' : 'Select all in this month'}
-                              aria-label={allChecked ? 'Deselect all in this month' : 'Select all in this month'}
-                              checked={allChecked}
-                              ref={(el) => {
-                                if (el) el.indeterminate = partial;
-                              }}
-                              onChange={(e) => {
-                                const next = new Set(selectedIds);
-                                if (e.target.checked) ids.forEach((id) => next.add(id));
-                                else ids.forEach((id) => next.delete(id));
-                                setSelectedIds(next);
-                              }}
-                            />
-                          );
-                        })()}
-                      </th>
-                      <th>Date</th>
-                      <th>Category</th>
-                      <th>Description</th>
-                      <th>Bank</th>
-                      <th className="text-right">Amount</th>
-                      <th className="text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {g.items.map((expense) => {
-                      const category = categories.find((c) => c.id === expense.category_id);
-                      const bank = banks.find((b) => b.id === expense.bank_id);
-                      const checked = selectedIds.has(expense.id);
-                      return (
-                        <tr key={expense.id} id={`row-tx-${expense.id}`} className={checked ? 'bg-red-500/10' : ''}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-red-600"
-                              checked={checked}
-                              onChange={(e) => {
-                                const next = new Set(selectedIds);
-                                if (e.target.checked) next.add(expense.id);
-                                else next.delete(expense.id);
-                                setSelectedIds(next);
-                              }}
-                            />
-                          </td>
-                      <td className="whitespace-nowrap">{formatDate(expense.transaction_date)}</td>
-                      <td>
-                        <span className="badge badge-orange">{category?.name}</span>
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => openView(expense)}
-                          className="text-left hover:text-18-orange transition-colors"
-                          title="View details"
-                        >
-                          {expense.description || <span className="text-18-dark-text italic">—</span>}
-                        </button>
-                      </td>
-                      <td className="whitespace-nowrap text-white/80">
-                        {bank?.bank_name || <span className="text-18-dark-text italic">—</span>}
-                      </td>
-                      <td className="text-right font-bold">
-                        {formatCurrency(expense.amount)}
-                      </td>
-                      <td className="text-center">
-                        <div className="flex gap-2 justify-center">
-                          {expense.receipt_url && (
-                            <button
-                              onClick={() => openReceipt(expense.receipt_url!)}
-                              className="text-18-dark-text hover:text-18-orange transition-colors"
-                              title="View receipt / invoice"
-                            >
-                              <Paperclip size={18} />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              setForm({
-                                description: expense.description || '',
-                                amount: expense.amount,
-                                bank_id: expense.bank_id,
-                                category_id: expense.category_id,
-                                transaction_date: expense.transaction_date,
-                                notes: expense.notes || '',
-                                receipt_url: expense.receipt_url || null,
-                              });
-                              setEditingId(expense.id);
-                              setShowForm(true);
+              {(() => {
+                // Shared select-all logic (used by both mobile chip + desktop
+                // header checkbox — keep the state in one place so the two
+                // views stay in sync).
+                const ids = g.items.map((x) => x.id);
+                const total = ids.length;
+                const selectedInGroup = ids.filter((id) => selectedIds.has(id)).length;
+                const allChecked = total > 0 && selectedInGroup === total;
+                const partial = selectedInGroup > 0 && !allChecked;
+                const toggleAll = (checked: boolean) => {
+                  const next = new Set(selectedIds);
+                  if (checked) ids.forEach((id) => next.add(id));
+                  else ids.forEach((id) => next.delete(id));
+                  setSelectedIds(next);
+                };
+                return (
+                  <>
+                    {/* Mobile "select all in month" chip — sits above the card
+                        stack. On desktop the same control lives inside the
+                        table header. */}
+                    {selectedInGroup > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleAll(!allChecked)}
+                        className="md:hidden inline-flex items-center gap-2 text-xs font-semibold text-18-orange mb-3 hover:text-white transition-colors"
+                      >
+                        {allChecked ? 'Deselect all' : `Select all ${total}`}
+                        <span className="text-white/40">·</span>
+                        <span className="text-white/60">{selectedInGroup} selected</span>
+                      </button>
+                    )}
+
+                    {/* ---------- Mobile card list (< md) ----------
+                        Design goal: read like a bank statement.
+                        No checkboxes in normal state — long-press any row
+                        (500 ms) to enter select mode, which shows a small
+                        circle on every row. Tapping toggles selection while
+                        in select mode; a normal tap opens the detail
+                        modal. Clearing all selections exits select mode.
+
+                        Long-press cancels if the finger moves > 10 px
+                        (i.e. user was scrolling), so this doesn't fight
+                        list scrolling. */}
+                    <ul className="md:hidden -mx-4 md:mx-0">
+                      {g.items.map((expense) => {
+                        const category = categories.find((c) => c.id === expense.category_id);
+                        const bank = banks.find((b) => b.id === expense.bank_id);
+                        const checked = selectedIds.has(expense.id);
+                        const startPress = (clientX: number, clientY: number) => {
+                          pressStartRef.current = { x: clientX, y: clientY };
+                          longPressFiredRef.current = false;
+                          cancelLongPress();
+                          pressTimerRef.current = setTimeout(() => {
+                            longPressFiredRef.current = true;
+                            pressTimerRef.current = null;
+                            // Enter select mode by picking this row.
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              next.add(expense.id);
+                              return next;
+                            });
+                            // Haptic tick on Android Chrome — silent no-op elsewhere.
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                              try { navigator.vibrate(30); } catch { /* ignore */ }
+                            }
+                          }, LONG_PRESS_MS);
+                        };
+                        const movePress = (clientX: number, clientY: number) => {
+                          const dx = Math.abs(clientX - pressStartRef.current.x);
+                          const dy = Math.abs(clientY - pressStartRef.current.y);
+                          if (dx > LONG_PRESS_MOVE_TOLERANCE_PX || dy > LONG_PRESS_MOVE_TOLERANCE_PX) {
+                            cancelLongPress();
+                          }
+                        };
+                        const handleTap = () => {
+                          // A long-press just fired; swallow the tap that
+                          // Chrome/Safari synthesise on pointerup.
+                          if (longPressFiredRef.current) {
+                            longPressFiredRef.current = false;
+                            return;
+                          }
+                          if (selectionMode) {
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(expense.id)) next.delete(expense.id);
+                              else next.add(expense.id);
+                              return next;
+                            });
+                          } else {
+                            openView(expense);
+                          }
+                        };
+                        return (
+                          <li
+                            key={expense.id}
+                            id={`row-tx-${expense.id}`}
+                            className={`flex items-center gap-3 px-4 py-3.5 border-b border-18-border/50 last:border-b-0 transition-colors cursor-pointer select-none ${
+                              checked ? 'bg-red-500/10' : 'active:bg-white/[0.04]'
+                            }`}
+                            onPointerDown={(e) => startPress(e.clientX, e.clientY)}
+                            onPointerMove={(e) => movePress(e.clientX, e.clientY)}
+                            onPointerUp={cancelLongPress}
+                            onPointerCancel={cancelLongPress}
+                            onPointerLeave={cancelLongPress}
+                            onClick={handleTap}
+                            onContextMenu={(e) => {
+                              // Prevent the browser's default long-press context
+                              // menu from showing so our select-mode is the only
+                              // long-press behaviour.
+                              e.preventDefault();
                             }}
-                            className="text-18-orange hover:text-white transition-colors"
                           >
-                            <Edit2 size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(expense.id)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                  </tbody>
-                </table>
-              </div>
+                            {/* Select-mode circle — only rendered when the
+                                user is in select mode, so the resting state
+                                is completely checkbox-free. */}
+                            {selectionMode && (
+                              <span
+                                className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                  checked
+                                    ? 'bg-red-500 border-red-500'
+                                    : 'border-white/30'
+                                }`}
+                                aria-hidden
+                              >
+                                {checked && <Check size={12} className="text-white" strokeWidth={3} />}
+                              </span>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline justify-between gap-3">
+                                <span className="text-[15px] font-semibold text-white truncate">
+                                  {expense.description || <span className="text-white/40 italic font-normal">no description</span>}
+                                </span>
+                                <span className="text-[15px] font-bold text-white whitespace-nowrap tabular-nums">
+                                  {formatCurrency(expense.amount)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1 text-xs text-white/50 truncate">
+                                <span className="whitespace-nowrap">{formatDate(expense.transaction_date)}</span>
+                                {category && (
+                                  <>
+                                    <span className="text-white/25">·</span>
+                                    <span className="whitespace-nowrap">{category.name}</span>
+                                  </>
+                                )}
+                                {bank && (
+                                  <>
+                                    <span className="text-white/25">·</span>
+                                    <span className="whitespace-nowrap truncate">{bank.bank_name}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    {/* ---------- Desktop table (≥ md) ---------- */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th className="w-8">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-red-600 cursor-pointer"
+                                title={allChecked ? 'Deselect all in this month' : 'Select all in this month'}
+                                aria-label={allChecked ? 'Deselect all in this month' : 'Select all in this month'}
+                                checked={allChecked}
+                                ref={(el) => {
+                                  if (el) el.indeterminate = partial;
+                                }}
+                                onChange={(e) => toggleAll(e.target.checked)}
+                              />
+                            </th>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Bank</th>
+                            <th className="text-right">Amount</th>
+                            <th className="text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.items.map((expense) => {
+                            const category = categories.find((c) => c.id === expense.category_id);
+                            const bank = banks.find((b) => b.id === expense.bank_id);
+                            const checked = selectedIds.has(expense.id);
+                            return (
+                              <tr key={expense.id} className={checked ? 'bg-red-500/10' : ''}>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-red-600"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const next = new Set(selectedIds);
+                                      if (e.target.checked) next.add(expense.id);
+                                      else next.delete(expense.id);
+                                      setSelectedIds(next);
+                                    }}
+                                  />
+                                </td>
+                                <td className="whitespace-nowrap">{formatDate(expense.transaction_date)}</td>
+                                <td>
+                                  <span className="badge badge-orange">{category?.name}</span>
+                                </td>
+                                <td>
+                                  <button
+                                    onClick={() => openView(expense)}
+                                    className="text-left hover:text-18-orange transition-colors"
+                                    title="View details"
+                                  >
+                                    {expense.description || <span className="text-18-dark-text italic">—</span>}
+                                  </button>
+                                </td>
+                                <td className="whitespace-nowrap text-white/80">
+                                  {bank?.bank_name || <span className="text-18-dark-text italic">—</span>}
+                                </td>
+                                <td className="text-right font-bold">
+                                  {formatCurrency(expense.amount)}
+                                </td>
+                                <td className="text-center">
+                                  <div className="flex gap-2 justify-center">
+                                    {expense.receipt_url && (
+                                      <button
+                                        onClick={() => openReceipt(expense.receipt_url!)}
+                                        className="text-18-dark-text hover:text-18-orange transition-colors"
+                                        title="View receipt / invoice"
+                                      >
+                                        <Paperclip size={18} />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => startEditExpense(expense)}
+                                      className="text-18-orange hover:text-white transition-colors"
+                                    >
+                                      <Edit2 size={18} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(expense.id)}
+                                      className="text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           );
         })
@@ -974,6 +1152,38 @@ export default function ExpensesPage() {
                   <ReceiptPreview path={exp.receipt_url} />
                 </div>
               )}
+
+              {/* Action footer — primary spot on mobile since the row itself
+                  is action-free. Also handy on desktop when someone opens
+                  the modal for a closer look. */}
+              <div className="flex flex-wrap gap-2 pt-4 border-t border-18-border">
+                <button
+                  onClick={() => startEditExpense(exp)}
+                  className="btn btn-primary flex-1 min-w-[120px]"
+                >
+                  <Edit2 size={16} />
+                  Edit
+                </button>
+                {exp.receipt_url && (
+                  <button
+                    onClick={() => openReceipt(exp.receipt_url!)}
+                    className="btn bg-18-surface-2 border border-18-border text-white hover:bg-18-surface flex-1 min-w-[120px]"
+                  >
+                    <Paperclip size={16} />
+                    View receipt
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setViewing(null);
+                    handleDelete(exp.id);
+                  }}
+                  className="btn bg-red-500/15 border border-red-500/40 text-red-300 hover:bg-red-500/25 flex-1 min-w-[120px]"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         );

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Transaction, Category, Bank } from '@/types';
 import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
-import { Plus, Edit2, Trash2, X, Upload, Download, ArrowRightLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Upload, Download, ArrowRightLeft, Check } from 'lucide-react';
 import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
 import { logAction } from '@/lib/auditLog';
 import CategorySelect from '@/components/CategorySelect';
@@ -13,6 +13,7 @@ import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { DateRange, defaultRange } from '@/lib/dateRanges';
 import { groupByMonth } from '@/lib/utils';
 import { useScrollToHash } from '@/lib/scrollToHash';
+import { useLongPressSelect } from '@/lib/useLongPressSelect';
 
 interface IncomeForm {
   description: string;
@@ -45,6 +46,11 @@ export default function IncomePage() {
   });
   const [transferring, setTransferring] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // Selection mode is implicit — as soon as any row is picked (via long-press
+  // on mobile or checkbox on desktop), the mobile cards render selection
+  // circles and normal taps toggle selection instead of opening the editor.
+  const selectionMode = selectedIds.size > 0;
+  const longPress = useLongPressSelect();
 
   const [form, setForm] = useState<IncomeForm>({
     description: '',
@@ -779,81 +785,161 @@ export default function IncomePage() {
                   <span className="font-bold text-white">{formatCurrency(monthTotal)}</span>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="w-8"></th>
-                      <th>Date</th>
-                      <th>Category</th>
-                      <th>Description</th>
-                      <th>Bank</th>
-                      <th className="text-right">Amount</th>
-                      <th className="text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {g.items.map((inc) => {
-                      const category = categories.find((c) => c.id === inc.category_id);
-                      const bank = banks.find((b) => b.id === inc.bank_id);
-                      const checked = selectedIds.has(inc.id);
-                      return (
-                        <tr key={inc.id} id={`row-tx-${inc.id}`} className={checked ? 'bg-red-500/10' : ''}>
-                          <td>
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 accent-red-600"
-                              checked={checked}
-                              onChange={(e) => {
-                                const next = new Set(selectedIds);
-                                if (e.target.checked) next.add(inc.id);
-                                else next.delete(inc.id);
-                                setSelectedIds(next);
-                              }}
-                            />
-                          </td>
-                      <td className="whitespace-nowrap">{formatDate(inc.transaction_date)}</td>
-                      <td>
-                        <span className="badge badge-orange">{category?.name}</span>
-                      </td>
-                      <td>{inc.description}</td>
-                      <td className="whitespace-nowrap text-white/80">
-                        {bank?.bank_name || <span className="text-18-dark-text italic">—</span>}
-                      </td>
-                      <td className="text-right font-bold">{formatCurrency(inc.amount)}</td>
-                      <td className="text-center">
-                        <div className="flex gap-2 justify-center">
-                          <button
-                            onClick={() => {
-                              setForm({
-                                description: inc.description || '',
-                                amount: inc.amount,
-                                bank_id: inc.bank_id,
-                                category_id: inc.category_id,
-                                transaction_date: inc.transaction_date,
-                                notes: inc.notes || '',
-                              });
-                              setEditingId(inc.id);
-                              setShowForm(true);
-                            }}
-                            className="text-18-orange hover:text-white transition-colors"
+              {(() => {
+                const startEditIncome = (inc: Transaction) => {
+                  setForm({
+                    description: inc.description || '',
+                    amount: inc.amount,
+                    bank_id: inc.bank_id,
+                    category_id: inc.category_id,
+                    transaction_date: inc.transaction_date,
+                    notes: inc.notes || '',
+                  });
+                  setEditingId(inc.id);
+                  setShowForm(true);
+                };
+                const toggleSelect = (id: number) => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  });
+                };
+                return (
+                  <>
+                    {/* Mobile card list — no horizontal scroll, no visible
+                        checkboxes at rest; long-press to enter select mode. */}
+                    <ul className="md:hidden -mx-4 md:mx-0">
+                      {g.items.map((inc) => {
+                        const category = categories.find((c) => c.id === inc.category_id);
+                        const bank = banks.find((b) => b.id === inc.bank_id);
+                        const checked = selectedIds.has(inc.id);
+                        const handlers = longPress.getHandlers(
+                          () => setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            next.add(inc.id);
+                            return next;
+                          }),
+                          () => (selectionMode ? toggleSelect(inc.id) : startEditIncome(inc)),
+                        );
+                        return (
+                          <li
+                            key={inc.id}
+                            id={`row-tx-${inc.id}`}
+                            className={`flex items-center gap-3 px-4 py-3.5 border-b border-18-border/50 last:border-b-0 cursor-pointer select-none transition-colors ${
+                              checked ? 'bg-red-500/10' : 'active:bg-white/[0.04]'
+                            }`}
+                            {...handlers}
                           >
-                            <Edit2 size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(inc.id)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                  </tbody>
-                </table>
-              </div>
+                            {selectionMode && (
+                              <span
+                                className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                  checked ? 'bg-red-500 border-red-500' : 'border-white/30'
+                                }`}
+                                aria-hidden
+                              >
+                                {checked && <Check size={12} className="text-white" strokeWidth={3} />}
+                              </span>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline justify-between gap-3">
+                                <span className="text-[15px] font-semibold text-white truncate">
+                                  {inc.description || <span className="text-white/40 italic font-normal">no description</span>}
+                                </span>
+                                <span className="text-[15px] font-bold text-white whitespace-nowrap tabular-nums">
+                                  {formatCurrency(inc.amount)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1 text-xs text-white/50 truncate">
+                                <span className="whitespace-nowrap">{formatDate(inc.transaction_date)}</span>
+                                {category && (
+                                  <>
+                                    <span className="text-white/25">·</span>
+                                    <span className="whitespace-nowrap">{category.name}</span>
+                                  </>
+                                )}
+                                {bank && (
+                                  <>
+                                    <span className="text-white/25">·</span>
+                                    <span className="whitespace-nowrap truncate">{bank.bank_name}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    {/* Desktop table (≥ md) — unchanged behaviour */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th className="w-8"></th>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Bank</th>
+                            <th className="text-right">Amount</th>
+                            <th className="text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.items.map((inc) => {
+                            const category = categories.find((c) => c.id === inc.category_id);
+                            const bank = banks.find((b) => b.id === inc.bank_id);
+                            const checked = selectedIds.has(inc.id);
+                            return (
+                              <tr key={inc.id} className={checked ? 'bg-red-500/10' : ''}>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-red-600"
+                                    checked={checked}
+                                    onChange={(e) => {
+                                      const next = new Set(selectedIds);
+                                      if (e.target.checked) next.add(inc.id);
+                                      else next.delete(inc.id);
+                                      setSelectedIds(next);
+                                    }}
+                                  />
+                                </td>
+                                <td className="whitespace-nowrap">{formatDate(inc.transaction_date)}</td>
+                                <td>
+                                  <span className="badge badge-orange">{category?.name}</span>
+                                </td>
+                                <td>{inc.description}</td>
+                                <td className="whitespace-nowrap text-white/80">
+                                  {bank?.bank_name || <span className="text-18-dark-text italic">—</span>}
+                                </td>
+                                <td className="text-right font-bold">{formatCurrency(inc.amount)}</td>
+                                <td className="text-center">
+                                  <div className="flex gap-2 justify-center">
+                                    <button
+                                      onClick={() => startEditIncome(inc)}
+                                      className="text-18-orange hover:text-white transition-colors"
+                                    >
+                                      <Edit2 size={18} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(inc.id)}
+                                      className="text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           );
         })

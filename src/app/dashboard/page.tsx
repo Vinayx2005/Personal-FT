@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import DateRangePicker from '@/components/DateRangePicker';
 import { DateRange, defaultRange } from '@/lib/dateRanges';
 import { fetchCurrentStreak } from '@/lib/streak';
@@ -120,9 +121,23 @@ export default function DashboardPage() {
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DateRange>(defaultRange());
+  // Bumped whenever we want to force a refetch (route entry, tab focus,
+  // pull-to-refresh in the future). Cheaper than plumbing a global store.
+  const [refreshTick, setRefreshTick] = useState(0);
+  const pathname = usePathname();
 
   useEffect(() => {
     fetchCurrentStreak().then(setStreak);
+  }, [refreshTick]);
+
+  // Refetch when the browser tab regains focus — covers backgrounded PWAs
+  // and users switching between tabs after adding a spend elsewhere.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setRefreshTick((t) => t + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   useEffect(() => {
@@ -202,7 +217,7 @@ export default function DashboardPage() {
       }
     };
     fetchDashboardData();
-  }, [range]);
+  }, [range, refreshTick, pathname]);
 
   if (loading) {
     return (

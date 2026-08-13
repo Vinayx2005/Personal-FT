@@ -576,69 +576,132 @@ export default function InvestmentsPage() {
         )}
 
         {sips.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th className="text-right">Amount</th>
-                  <th>Frequency</th>
-                  <th>Source Bank</th>
-                  <th>Next debit</th>
-                  <th>Status</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sips.map((s) => {
-                  const bank = banks.find((b) => b.id === s.source_bank_id);
-                  return (
-                    <tr key={s.id}>
-                      <td className="font-semibold">
-                        {s.name}
-                        {s.investment_id && (
-                          <span className="ml-2 text-[10px] text-18-orange/80">→ {investments.find((i) => i.id === s.investment_id)?.name || 'linked'}</span>
-                        )}
-                      </td>
-                      <td className="text-right font-bold">{formatCurrency(s.amount)}</td>
-                      <td>
-                        <span className="badge badge-orange">
+          <>
+            {/* Mobile: stacked cards. SIPs don't support bulk-select so no
+                long-press wiring — Play/Pause/Delete stay inline as small
+                icon buttons on the right. */}
+            <ul className="md:hidden divide-y divide-18-border/70">
+              {sips.map((s) => {
+                const bank = banks.find((b) => b.id === s.source_bank_id);
+                const linked = s.investment_id
+                  ? investments.find((i) => i.id === s.investment_id)?.name
+                  : null;
+                return (
+                  <li key={s.id} className="py-3 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[15px] font-semibold text-white truncate">{s.name}</span>
+                        <span className="text-[15px] font-bold text-white whitespace-nowrap tabular-nums">
+                          {formatCurrency(s.amount)}
+                        </span>
+                      </div>
+                      <div className="flex items-center flex-wrap gap-x-1.5 gap-y-1 mt-1 text-[11px] text-white/50">
+                        <span className="badge badge-orange !text-[10px] !px-2 !py-0.5">
                           {SIP_FREQUENCY_LABELS[s.frequency]} · d{s.debit_day}
                         </span>
-                      </td>
-                      <td className="text-18-dark-text">{bank?.bank_name || '—'}</td>
-                      <td className="text-18-dark-text">
-                        {s.is_active ? formatDate(s.next_debit_date) : <span className="text-white/40">paused</span>}
-                      </td>
-                      <td>
-                        <span className={`text-xs font-semibold ${s.is_active ? 'text-green-400' : 'text-white/40'}`}>
-                          {s.is_active ? 'Active' : 'Paused'}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <div className="inline-flex items-center gap-2">
-                          <button
-                            onClick={() => handleToggleSip(s.id)}
-                            className="text-white/60 hover:text-white transition-colors"
-                            title={s.is_active ? 'Pause SIP' : 'Resume SIP'}
-                          >
-                            {s.is_active ? <Pause size={14} /> : <Play size={14} />}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteSip(s.id)}
-                            className="text-red-400 hover:text-red-300 transition-colors"
-                            title="Delete SIP"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {bank && <span className="whitespace-nowrap">{bank.bank_name}</span>}
+                        <span className="text-white/25">·</span>
+                        {s.is_active ? (
+                          <span className="whitespace-nowrap">Next {formatDate(s.next_debit_date)}</span>
+                        ) : (
+                          <span className="whitespace-nowrap text-white/40">Paused</span>
+                        )}
+                        {linked && (
+                          <>
+                            <span className="text-white/25">·</span>
+                            <span className="whitespace-nowrap text-18-orange/80">→ {linked}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleToggleSip(s.id)}
+                        className="text-white/60 hover:text-white p-2 -m-2 transition-colors"
+                        title={s.is_active ? 'Pause SIP' : 'Resume SIP'}
+                        aria-label={s.is_active ? 'Pause SIP' : 'Resume SIP'}
+                      >
+                        {s.is_active ? <Pause size={16} /> : <Play size={16} />}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSip(s.id)}
+                        className="text-red-400 hover:text-red-300 p-2 -m-2 transition-colors"
+                        title="Delete SIP"
+                        aria-label="Delete SIP"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Desktop table (≥ md) — unchanged */}
+            <div className="hidden md:block overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th className="text-right">Amount</th>
+                    <th>Frequency</th>
+                    <th>Source Bank</th>
+                    <th>Next debit</th>
+                    <th>Status</th>
+                    <th className="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sips.map((s) => {
+                    const bank = banks.find((b) => b.id === s.source_bank_id);
+                    return (
+                      <tr key={s.id}>
+                        <td className="font-semibold">
+                          {s.name}
+                          {s.investment_id && (
+                            <span className="ml-2 text-[10px] text-18-orange/80">→ {investments.find((i) => i.id === s.investment_id)?.name || 'linked'}</span>
+                          )}
+                        </td>
+                        <td className="text-right font-bold">{formatCurrency(s.amount)}</td>
+                        <td>
+                          <span className="badge badge-orange">
+                            {SIP_FREQUENCY_LABELS[s.frequency]} · d{s.debit_day}
+                          </span>
+                        </td>
+                        <td className="text-18-dark-text">{bank?.bank_name || '—'}</td>
+                        <td className="text-18-dark-text">
+                          {s.is_active ? formatDate(s.next_debit_date) : <span className="text-white/40">paused</span>}
+                        </td>
+                        <td>
+                          <span className={`text-xs font-semibold ${s.is_active ? 'text-green-400' : 'text-white/40'}`}>
+                            {s.is_active ? 'Active' : 'Paused'}
+                          </span>
+                        </td>
+                        <td className="text-center">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              onClick={() => handleToggleSip(s.id)}
+                              className="text-white/60 hover:text-white transition-colors"
+                              title={s.is_active ? 'Pause SIP' : 'Resume SIP'}
+                            >
+                              {s.is_active ? <Pause size={14} /> : <Play size={14} />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSip(s.id)}
+                              className="text-red-400 hover:text-red-300 transition-colors"
+                              title="Delete SIP"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-18-dark-text text-center py-6">
             No SIPs set up yet. Add one to auto-record recurring investment debits.
@@ -772,56 +835,111 @@ export default function InvestmentsPage() {
 
       <div className="card">
         {investments.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Source Bank</th>
-                  <th>Start / Purchase</th>
-                  <th>Maturity</th>
-                  <th className="text-right">Rate / Return</th>
-                  <th className="text-right">Amount</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {investments.map((inv) => {
-                  const bank = banks.find((b) => b.id === inv.source_bank_id);
-                  return (
-                    <tr key={inv.id}>
-                      <td className="font-semibold">{inv.name}</td>
-                      <td>
-                        <span className="badge badge-orange">{INVESTMENT_TYPE_LABELS[inv.type]}</span>
-                      </td>
-                      <td className="text-18-dark-text">{bank?.bank_name || '—'}</td>
-                      <td className="text-18-dark-text">{inv.start_date ? formatDate(inv.start_date) : '—'}</td>
-                      <td className="text-18-dark-text">{inv.maturity_date ? formatDate(inv.maturity_date) : '—'}</td>
-                      <td className="text-right text-18-dark-text">
-                        {inv.interest_rate ? `${inv.interest_rate}%` : '—'}
-                      </td>
-                      <td className="text-right font-bold">{formatCurrency(inv.amount)}</td>
-                      <td className="text-center">
-                        <button
-                          onClick={() => handleDelete(inv.id)}
-                          className="text-red-400 hover:text-red-300"
-                          title="Delete investment"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr>
-                  <td colSpan={6} className="text-right font-bold text-white">Total value</td>
-                  <td className="text-right font-bold text-18-orange">{formatCurrency(total)}</td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Mobile card list — no horizontal scroll */}
+            <ul className="md:hidden divide-y divide-18-border/70">
+              {investments.map((inv) => {
+                const bank = banks.find((b) => b.id === inv.source_bank_id);
+                return (
+                  <li key={inv.id} className="py-3 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[15px] font-semibold text-white truncate">{inv.name}</span>
+                        <span className="text-[15px] font-bold text-white whitespace-nowrap tabular-nums">
+                          {formatCurrency(inv.amount)}
+                        </span>
+                      </div>
+                      <div className="flex items-center flex-wrap gap-x-1.5 gap-y-1 mt-1 text-[11px] text-white/50">
+                        <span className="badge badge-orange !text-[10px] !px-2 !py-0.5">
+                          {INVESTMENT_TYPE_LABELS[inv.type]}
+                        </span>
+                        {bank && <span className="whitespace-nowrap">{bank.bank_name}</span>}
+                        {inv.start_date && (
+                          <>
+                            <span className="text-white/25">·</span>
+                            <span className="whitespace-nowrap">{formatDate(inv.start_date)}</span>
+                          </>
+                        )}
+                        {inv.interest_rate ? (
+                          <>
+                            <span className="text-white/25">·</span>
+                            <span className="whitespace-nowrap">{inv.interest_rate}%</span>
+                          </>
+                        ) : null}
+                      </div>
+                      {inv.maturity_date && (
+                        <p className="text-[10px] text-white/40 mt-0.5">Matures {formatDate(inv.maturity_date)}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDelete(inv.id)}
+                      className="text-red-400 hover:text-red-300 p-2 -m-2 transition-colors shrink-0"
+                      title="Delete investment"
+                      aria-label="Delete investment"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </li>
+                );
+              })}
+              <li className="pt-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-white">Total value</span>
+                <span className="text-lg font-bold text-18-orange tabular-nums">{formatCurrency(total)}</span>
+              </li>
+            </ul>
+
+            {/* Desktop table (≥ md) — unchanged */}
+            <div className="hidden md:block overflow-x-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Source Bank</th>
+                    <th>Start / Purchase</th>
+                    <th>Maturity</th>
+                    <th className="text-right">Rate / Return</th>
+                    <th className="text-right">Amount</th>
+                    <th className="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {investments.map((inv) => {
+                    const bank = banks.find((b) => b.id === inv.source_bank_id);
+                    return (
+                      <tr key={inv.id}>
+                        <td className="font-semibold">{inv.name}</td>
+                        <td>
+                          <span className="badge badge-orange">{INVESTMENT_TYPE_LABELS[inv.type]}</span>
+                        </td>
+                        <td className="text-18-dark-text">{bank?.bank_name || '—'}</td>
+                        <td className="text-18-dark-text">{inv.start_date ? formatDate(inv.start_date) : '—'}</td>
+                        <td className="text-18-dark-text">{inv.maturity_date ? formatDate(inv.maturity_date) : '—'}</td>
+                        <td className="text-right text-18-dark-text">
+                          {inv.interest_rate ? `${inv.interest_rate}%` : '—'}
+                        </td>
+                        <td className="text-right font-bold">{formatCurrency(inv.amount)}</td>
+                        <td className="text-center">
+                          <button
+                            onClick={() => handleDelete(inv.id)}
+                            className="text-red-400 hover:text-red-300"
+                            title="Delete investment"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td colSpan={6} className="text-right font-bold text-white">Total value</td>
+                    <td className="text-right font-bold text-18-orange">{formatCurrency(total)}</td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-18-dark-text text-center py-8">
             No investments recorded. Click <strong>Add Investment</strong> to start.
