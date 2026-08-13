@@ -7,7 +7,9 @@ import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatDateISO } from '@/lib/utils';
 import { logAction } from '@/lib/auditLog';
 import { fetchCurrentStreak } from '@/lib/streak';
-import { parseVoiceInput } from '@/lib/voiceParse';
+import { parseExpense } from '@/lib/aiParse';
+import { VoiceRecorder, parseAudioExpense } from '@/lib/aiAudio';
+import { UNEXPECTED_AI_ERROR } from '@/lib/aiError';
 import {
   Mic,
   Send,
@@ -46,7 +48,17 @@ type BotPreview = {
   editing: boolean;
 };
 type UserText  = { id: string; role: 'user'; kind: 'text';    text: string;    ts: number };
-type UserVoice = { id: string; role: 'user'; kind: 'voice';   transcript: string; ts: number };
+// Voice notes carry the recorded audio's blob URL (transient — lives only
+// for the current tab) + duration. On history restore we won't have the URL
+// so playback disables; the bubble still renders as a "voice note" chip.
+type UserVoice = {
+  id: string;
+  role: 'user';
+  kind: 'voice';
+  audioUrl?: string;
+  durationMs: number;
+  ts: number;
+};
 
 type ChatMessage = BotText | BotError | BotSaved | BotPreview | UserText | UserVoice;
 
@@ -66,7 +78,10 @@ const emptyDraft = (): Draft => ({
 // Chat persistence — key is scoped by user id so if another account signs in
 // on the same browser they don't see this user's chat. Version prefix lets us
 // bump the schema later without reading incompatible payloads.
-const CHAT_STORAGE_VERSION = 1;
+// Bumped to 2 when voice notes moved from text-transcript to audio-blob
+// storage — old v1 payloads with a `transcript` string on voice messages
+// no longer render correctly, so we discard them on the schema bump.
+const CHAT_STORAGE_VERSION = 2;
 const CHAT_MAX_MESSAGES = 300;
 const chatKey = (uid: string) => `pft_chat_v${CHAT_STORAGE_VERSION}_${uid}`;
 
@@ -89,6 +104,14 @@ function loadChatHistory(uid: string): ChatMessage[] | null {
           status: m.status === 'active' ? 'cancelled' : m.status,
         };
       }
+      // Voice bubbles saved from a previous session no longer have a valid
+      // blob URL (the browser garbage-collects them on unload). Strip it so
+      // the render shows a "playback expired" state instead of a dead audio
+      // element that just spins.
+      if (m?.role === 'user' && m?.kind === 'voice' && m?.audioUrl) {
+        const { audioUrl, ...rest } = m;
+        return rest;
+      }
       return m;
     }) as ChatMessage[];
   } catch {
@@ -99,6 +122,13 @@ function loadChatHistory(uid: string): ChatMessage[] | null {
 function fmtClock(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function fmtDuration(ms: number): string {
+  const totalSec = Math.max(0, Math.round(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 function fmtDatePretty(iso: string): string {
@@ -127,8 +157,10 @@ export default function QuickChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
 
-  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'unsupported'>('idle');
-  const recognitionRef = useRef<any>(null);
+  // 'listening' = currently recording; 'processing' = uploading + waiting on
+  // Gemini; 'unsupported' = MediaRecorder / getUserMedia not available.
+  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'processing' | 'unsupported'>('idle');
+  const recorderRef = useRef<VoiceRecorder | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -199,6 +231,60 @@ export default function QuickChatPage() {
     }
   }, [messages, userId]);
 
+  // Clean up on unmount:
+  //  1. Revoke every voice-note blob URL still in the message list —
+  //     URL.createObjectURL holds the blob in memory until the URL is
+  //     revoked, so a long session logging voice notes would keep growing.
+  //  2. Cancel any in-flight recording so the mic doesn't stay hot when
+  //     the user navigates away mid-record.
+  // Note: this is a mount-only effect (empty deps). It closes over the
+  // component's messages/recorder refs via the DOM at teardown time — the
+  // messages array is read live via the closure below.
+  useEffect(() => {
+    return () => {
+      try {
+        recorderRef.current?.cancel();
+      } catch { /* ignore */ }
+      // Best-effort revoke — walking the current messages state via a fresh
+      // read is fiddly in a cleanup, so instead we track voice URLs in a ref
+      // and revoke there. Keep this simple by just letting the effect below
+      // do it. (See voiceUrlsRef effect.)
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Track every blob URL we mint so we can revoke on unmount + when the
+  // history is trimmed off the top of the message list.
+  const voiceUrlsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    // Register any newly-arrived voice URLs.
+    const alive = new Set<string>();
+    for (const m of messages) {
+      if (m.role === 'user' && m.kind === 'voice' && m.audioUrl) {
+        alive.add(m.audioUrl);
+        voiceUrlsRef.current.add(m.audioUrl);
+      }
+    }
+    // Anything in the ref that's not in the current message list has fallen
+    // off (trimmed by CHAT_MAX_MESSAGES) — revoke it now.
+    for (const url of Array.from(voiceUrlsRef.current)) {
+      if (!alive.has(url)) {
+        try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+        voiceUrlsRef.current.delete(url);
+      }
+    }
+  }, [messages]);
+  useEffect(() => {
+    // Final revoke sweep on unmount. Separated from the mount-only effect
+    // above so this one can access voiceUrlsRef in its own closure.
+    return () => {
+      for (const url of voiceUrlsRef.current) {
+        try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+      }
+      voiceUrlsRef.current.clear();
+    };
+  }, []);
+
   // ---------- Message helpers ----------
 
   const push = (msg: ChatMessage) => setMessages((prev) => [...prev, msg]);
@@ -219,107 +305,132 @@ export default function QuickChatPage() {
     parseAndPreview(t);
   };
 
-  const parseAndPreview = (text: string) => {
-    const parsed = parseVoiceInput(text, bankNames, categoryNames);
-    const draft: Draft = {
-      amount: parsed.amount,
-      description: parsed.description || '',
-      category: parsed.category,
-      bank: parsed.bank,
-      date: parsed.date,
-    };
-    push({
-      id: rid(),
-      role: 'bot',
-      kind: 'preview',
-      draft,
-      missing: parsed.missing,
-      status: 'active',
-      editing: false,
-      ts: now(),
+  const parseAndPreview = async (text: string) => {
+    // Show a "thinking" bot text bubble while Gemini works — it usually
+    // returns in <2s but a slow phone network can stretch it out.
+    const thinkingId = rid();
+    push({ id: thinkingId, role: 'bot', kind: 'text', text: 'Thinking…', ts: now() });
+
+    const parsed = await parseExpense(text, bankNames, categoryNames);
+    // Swap the "Thinking…" bubble out for the preview card.
+    setMessages((prev) => {
+      const next = prev.filter((m) => m.id !== thinkingId);
+      const draft: Draft = {
+        amount: parsed.amount,
+        description: parsed.description || '',
+        category: parsed.category,
+        bank: parsed.bank,
+        date: parsed.date,
+      };
+      next.push({
+        id: rid(),
+        role: 'bot',
+        kind: 'preview',
+        draft,
+        missing: parsed.missing,
+        status: 'active',
+        editing: false,
+        ts: now(),
+      });
+      return next;
     });
   };
 
   // ---------- Voice ----------
 
-  const handleMic = () => {
-    if (voiceState === 'listening') {
-      recognitionRef.current?.stop();
-      return;
-    }
-    const SR: any =
-      typeof window !== 'undefined'
-        ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-        : null;
-    if (!SR) {
-      setVoiceState('unsupported');
-      pushBotError("Voice input isn't supported in this browser. Try Chrome (desktop or Android) or Safari 14.5+.");
-      return;
-    }
+  const handleMic = async () => {
+    // Tap while recording → stop, upload, hand off to Gemini for audio
+    // transcription + expense extraction in one call.
+    if (voiceState === 'listening' && recorderRef.current) {
+      // Take ownership of the recorder ref + flip state to 'processing'
+      // BEFORE awaiting stop, so a second rapid tap during the async stop
+      // sees state !== 'listening' + ref === null and short-circuits.
+      // Otherwise both taps would race for the same stop(), overwriting the
+      // MediaRecorder's onstop handler and hanging the first promise forever.
+      const rec = recorderRef.current;
+      recorderRef.current = null;
+      setVoiceState('processing');
 
-    const recognition = new SR();
-    recognition.lang = 'en-IN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 3;
-    recognition.continuous = false;
-    recognitionRef.current = recognition;
-
-    recognition.onresult = (event: any) => {
-      // Pick the alternate with the best parse (fewest missing fields).
-      const alts: string[] = [];
-      const first = event.results[0];
-      for (let i = 0; i < first.length; i++) {
-        const t = (first[i]?.transcript || '').trim();
-        if (t) alts.push(t);
+      let stopped: { blob: Blob; durationMs: number };
+      try {
+        stopped = await rec.stop();
+      } catch (err: any) {
+        setVoiceState('idle');
+        pushBotError(`Recording error: ${err?.message || 'unknown'}`);
+        return;
       }
-      if (alts.length === 0) return;
-
-      let bestParsed = parseVoiceInput(alts[0], bankNames, categoryNames);
-      let bestT = alts[0];
-      for (let i = 1; i < alts.length; i++) {
-        const p = parseVoiceInput(alts[i], bankNames, categoryNames);
-        if (p.missing.length < bestParsed.missing.length) {
-          bestParsed = p;
-          bestT = alts[i];
-        }
+      if (stopped.durationMs < 400) {
+        // Tap-to-cancel: too short to be a real voice note.
+        setVoiceState('idle');
+        return;
       }
 
-      push({ id: rid(), role: 'user', kind: 'voice', transcript: bestT, ts: now() });
-      const draft: Draft = {
-        amount: bestParsed.amount,
-        description: bestParsed.description || '',
-        category: bestParsed.category,
-        bank: bestParsed.bank,
-        date: bestParsed.date,
-      };
+      const audioUrl = URL.createObjectURL(stopped.blob);
       push({
         id: rid(),
-        role: 'bot',
-        kind: 'preview',
-        draft,
-        missing: bestParsed.missing,
-        status: 'active',
-        editing: false,
+        role: 'user',
+        kind: 'voice',
+        audioUrl,
+        durationMs: stopped.durationMs,
         ts: now(),
       });
-    };
-    recognition.onerror = (event: any) => {
-      setVoiceState('idle');
-      const kind = event?.error || 'error';
-      const friendly =
-        kind === 'not-allowed' || kind === 'service-not-allowed'
-          ? 'Mic permission blocked. Allow microphone access for this site.'
-          : kind === 'no-speech'
-          ? "Didn't catch that — try again."
-          : `Voice input failed (${kind}).`;
-      pushBotError(friendly);
-    };
-    recognition.onend = () => setVoiceState('idle');
 
-    setVoiceState('listening');
+      const thinkingId = rid();
+      push({ id: thinkingId, role: 'bot', kind: 'text', text: 'Listening & parsing…', ts: now() });
+      // voiceState was already flipped to 'processing' at the top of this
+      // branch (before await stop) — no re-set needed here.
+
+      try {
+        const parsed = await parseAudioExpense(stopped.blob, bankNames, categoryNames);
+        setMessages((prev) => {
+          const next = prev.filter((m) => m.id !== thinkingId);
+          const draft: Draft = {
+            amount: parsed.amount,
+            description: parsed.description || '',
+            category: parsed.category,
+            bank: parsed.bank,
+            date: parsed.date,
+          };
+          next.push({
+            id: rid(),
+            role: 'bot',
+            kind: 'preview',
+            draft,
+            missing: parsed.missing,
+            status: 'active',
+            editing: false,
+            ts: now(),
+          });
+          return next;
+        });
+      } catch (err: any) {
+        setMessages((prev) => prev.filter((m) => m.id !== thinkingId));
+        // parseAudioExpense already funnels API failures through the shared
+        // UNEXPECTED_AI_ERROR string; the || fallback catches any other
+        // throw path so the user never sees a stack trace.
+        pushBotError(err?.message || UNEXPECTED_AI_ERROR);
+      } finally {
+        setVoiceState('idle');
+      }
+      return;
+    }
+
+    // Tap when idle → start recording.
+    const rec = new VoiceRecorder();
+    if (!rec.isSupported()) {
+      setVoiceState('unsupported');
+      pushBotError("Voice notes aren't supported in this browser. Try Chrome, Edge, or Safari 14.5+.");
+      return;
+    }
     try {
-      recognition.start();
-    } catch {
+      await rec.start();
+      recorderRef.current = rec;
+      setVoiceState('listening');
+    } catch (err: any) {
+      const msg = err?.name === 'NotAllowedError'
+        ? 'Mic permission blocked. Allow microphone access for this site and try again.'
+        : `Couldn't start recording: ${err?.message || err}`;
+      pushBotError(msg);
       setVoiceState('idle');
     }
   };
@@ -567,7 +678,7 @@ export default function QuickChatPage() {
             rows={1}
             className="flex-1 min-w-0 resize-none bg-18-surface border border-18-border rounded-2xl px-3.5 md:px-4 py-2.5 md:py-3 text-[15px] md:text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-18-orange transition-colors max-h-32"
           />
-          {inputText.trim().length > 0 && voiceState !== 'listening' ? (
+          {inputText.trim().length > 0 && voiceState !== 'listening' && voiceState !== 'processing' ? (
             <button
               type="button"
               onClick={handleSendText}
@@ -580,13 +691,19 @@ export default function QuickChatPage() {
             <button
               type="button"
               onClick={handleMic}
-              disabled={voiceState === 'unsupported'}
-              className={`relative h-11 w-11 rounded-full flex items-center justify-center shrink-0 transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              disabled={voiceState === 'unsupported' || voiceState === 'processing'}
+              className={`relative h-11 w-11 rounded-full flex items-center justify-center shrink-0 transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
                 voiceState === 'listening'
                   ? 'bg-red-500 shadow-[0_0_18px_-2px_rgba(239,68,68,0.9)]'
                   : 'bg-18-orange shadow-[0_0_18px_-4px_rgba(243,115,53,0.7)] hover:brightness-110 active:scale-95'
               }`}
-              aria-label={voiceState === 'listening' ? 'Stop recording' : 'Record voice'}
+              aria-label={
+                voiceState === 'listening'
+                  ? 'Stop recording'
+                  : voiceState === 'processing'
+                  ? 'Processing voice note'
+                  : 'Record voice note'
+              }
             >
               {voiceState === 'listening' && (
                 <span
@@ -599,15 +716,16 @@ export default function QuickChatPage() {
           )}
         </div>
         <p className="mt-1 md:mt-1.5 text-[10px] text-white/40 text-center">
-          {voiceState === 'listening'
-            ? 'Listening… tap the mic again to stop'
-            : /* Different hint text based on desktop vs touch */ ''}
-          <span className="hidden md:inline">
-            {voiceState !== 'listening' && 'Enter to send · Shift+Enter for a new line'}
-          </span>
-          <span className="md:hidden">
-            {voiceState !== 'listening' && 'Type or tap 🎙 to speak'}
-          </span>
+          {voiceState === 'listening' ? (
+            'Recording… tap the mic again to send'
+          ) : voiceState === 'processing' ? (
+            'Transcribing & parsing your voice note…'
+          ) : (
+            <>
+              <span className="hidden md:inline">Enter to send · Shift+Enter for a new line · 🎙 for a voice note</span>
+              <span className="md:hidden">Type, or tap 🎙 to send a voice note</span>
+            </>
+          )}
         </p>
       </div>
     </div>
@@ -631,17 +749,37 @@ function MessageRow(props: {
   const { msg } = props;
 
   if (msg.role === 'user') {
+    if (msg.kind === 'voice') {
+      // Voice bubble: audio player only, no transcript text. If the audio
+      // URL is missing (restored from persisted history — blob URLs die on
+      // reload), show a disabled placeholder.
+      return (
+        <div className="flex justify-end">
+          <div className="max-w-[80%] bg-18-orange/15 border border-18-orange/30 rounded-2xl rounded-tr-md px-3 py-2 text-white shadow-sm">
+            <div className="flex items-center gap-2">
+              <Mic size={12} className="text-18-orange shrink-0" />
+              {msg.audioUrl ? (
+                <audio
+                  controls
+                  preload="metadata"
+                  src={msg.audioUrl}
+                  className="max-w-[220px] h-8"
+                />
+              ) : (
+                <span className="text-xs text-white/60 italic">
+                  Voice note ({fmtDuration(msg.durationMs)}) · playback expired
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-white/40 text-right mt-1">{fmtClock(msg.ts)}</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex justify-end">
         <div className="max-w-[80%] bg-18-orange/15 border border-18-orange/30 rounded-2xl rounded-tr-md px-4 py-2.5 text-sm text-white shadow-sm">
-          {msg.kind === 'voice' && (
-            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold text-18-orange/90 mb-1">
-              <Mic size={10} /> Voice note
-            </div>
-          )}
-          <p className="whitespace-pre-wrap break-words">
-            {msg.kind === 'voice' ? msg.transcript : msg.text}
-          </p>
+          <p className="whitespace-pre-wrap break-words">{msg.text}</p>
           <p className="text-[10px] text-white/40 text-right mt-1">{fmtClock(msg.ts)}</p>
         </div>
       </div>
