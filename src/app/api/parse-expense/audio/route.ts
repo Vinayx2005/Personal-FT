@@ -107,12 +107,20 @@ export async function POST(req: NextRequest) {
   // Base64 the audio for inline_data.
   const arrayBuf = await audioBlob.arrayBuffer();
   const base64 = Buffer.from(arrayBuf).toString('base64');
-  // Strip codec parameters ("audio/webm;codecs=opus" → "audio/webm"). Some
-  // Gemini regions reject the parameterised form even though the container
-  // itself is fine. Also normalise to a canonical audio/webm|mp4|ogg default
-  // if the blob came in with no type at all.
-  const rawType = (audioBlob.type || 'audio/webm').split(';')[0].trim();
-  const mimeType = rawType || 'audio/webm';
+  // Strip codec parameters ("audio/webm;codecs=opus" → "audio/webm") — some
+  // Gemini regions reject the parameterised form.
+  const containerType = (audioBlob.type || 'audio/webm').split(';')[0].trim();
+  // Gemini's officially supported audio types are wav / mp3 / aac / ogg /
+  // aiff / flac. It does NOT accept "audio/mp4" as a container label even
+  // though the AAC bytes inside are exactly what audio/aac would carry.
+  // Safari (both desktop and iOS Safari + the installed PWA) records into
+  // audio/mp4 by default — so without this relabel, every voice note from
+  // an iPhone gets rejected with a cryptic Gemini 400. Same bytes, right
+  // label, works.
+  const mimeType =
+    containerType === 'audio/mp4' || containerType === 'audio/x-m4a'
+      ? 'audio/aac'
+      : containerType || 'audio/webm';
 
   const userPrompt = `Today is ${todayIso}.
 User's banks: ${banks.length ? banks.join(', ') : '(none set up)'}

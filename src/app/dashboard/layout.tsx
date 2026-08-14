@@ -122,12 +122,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     });
 
     // Then check whatever's already in storage/cookie. Retry generously —
-    // on a cold PWA start over mobile data, Supabase's session-restore +
-    // token refresh round trip can take 2-4s. The old 1.2s window bounced
-    // users to landing prematurely, which the user perceives as "auto
-    // logout". Now: 30 attempts × 200 ms = 6s ceiling.
+    // on a cold PWA start over slow mobile data, Supabase's session-restore
+    // + token refresh round trip can take up to 10 s. Bumped from 6 s to
+    // 12 s (60 × 200 ms) after users reported still being kicked to
+    // landing on installed PWAs.
     (async () => {
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 60; i++) {
         if (!mounted || handled) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
@@ -140,27 +140,39 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       router.push('/');
     })();
 
-    // When the PWA is backgrounded on iOS and reopened hours later, the
-    // access token may have expired without ever hitting the auto-refresh
-    // interval (browsers throttle background timers). Poke Supabase on
-    // every visibility-change to foreground so it refreshes proactively.
-    // Nothing to do if the tab is going hidden — only when it comes back.
+    // On foreground: force a real token refresh (not just a storage read),
+    // so a session that was about to expire gets a fresh access token
+    // before the user's next action touches the network. refreshSession
+    // returns quickly if the current token is still fresh.
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return;
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.refreshSession().then(({ data: { session } }) => {
         if (!mounted) return;
         if (session?.user && !handled) loadProfile(session.user);
-        // If the refresh failed and there's no session, DON'T bounce here —
+        // If refresh failed and there's no session, DON'T bounce here —
         // the user may be reading the current page; let the next
         // network-touching action surface the auth error naturally.
-      });
+      }).catch(() => { /* offline / network hiccup — ignore, try again next visibility change */ });
     };
     document.addEventListener('visibilitychange', onVisibility);
+
+    // Foreground keep-alive: refresh every 4 minutes while the tab is
+    // visible. Access tokens expire in 1 h by default; refreshing 15×
+    // per hour keeps the session healthy indefinitely as long as the
+    // user has the app open, which fixes the "I was using it and then
+    // suddenly got logged out" case that happens when the auto-refresh
+    // timer misses a beat.
+    const KEEP_ALIVE_MS = 4 * 60 * 1000;
+    const keepAliveTimer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+      supabase.auth.refreshSession().catch(() => { /* silent — next tick tries again */ });
+    }, KEEP_ALIVE_MS);
 
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
       document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(keepAliveTimer);
     };
   }, [router]);
 
