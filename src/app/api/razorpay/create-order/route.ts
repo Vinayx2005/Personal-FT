@@ -10,8 +10,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { LIFETIME_PRICE_PAISE } from '@/lib/pricing';
 
-const AMOUNT_INR_PAISE = 49900; // Rs 499.00
+const AMOUNT_INR_PAISE = LIFETIME_PRICE_PAISE;
 const CURRENCY = 'INR';
 
 export async function POST(req: NextRequest) {

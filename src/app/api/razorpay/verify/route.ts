@@ -9,6 +9,7 @@ import { createHmac } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { buildPaymentDone } from '@/lib/email/templates';
 import { sendEmail } from '@/lib/email/send';
+import { LIFETIME_PRICE_INR } from '@/lib/pricing';
 
 interface VerifyBody {
   razorpay_order_id?: string;
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     .update({
       is_paid: true,
       paid_at: new Date().toISOString(),
-      amount: 499,
+      amount: LIFETIME_PRICE_INR,
       razorpay_order_id,
       razorpay_payment_id,
       updated_at: new Date().toISOString(),
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
       const tpl = buildPaymentDone({
         firstName,
         appUrl,
-        amountInRupees: 499,
+        amountInRupees: LIFETIME_PRICE_INR,
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
       });
