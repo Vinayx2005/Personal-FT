@@ -30,7 +30,22 @@ export default function LoginPage() {
       if (authError) throw authError;
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      // Supabase auth errors sometimes come back as objects with a nested
+      // shape (e.g. { code, message } or { error, error_description }). The
+      // old `err.message || 'Login failed'` was rendering `{}` when the
+      // message was itself an empty-object placeholder. Try each shape in
+      // order and only fall back to the generic string.
+      const msg =
+        (typeof err?.message === 'string' && err.message.trim() && err.message !== '{}' && err.message) ||
+        (typeof err?.error_description === 'string' && err.error_description) ||
+        (typeof err?.error === 'string' && err.error) ||
+        (err?.status ? `Login failed (HTTP ${err.status})` : null) ||
+        'Login failed. Check your email and password, then try again.';
+      setError(String(msg));
+      // Log the full shape so we can debug from browser devtools even when
+      // the visible bubble is the friendly fallback.
+      // eslint-disable-next-line no-console
+      console.warn('[login] signInWithPassword error:', err);
     } finally {
       setLoading(false);
     }

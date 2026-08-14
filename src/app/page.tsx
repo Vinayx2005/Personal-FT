@@ -671,16 +671,26 @@ export default function LandingPage() {
 
       {/* ------------------------------ FOOTER ----------------------------- */}
       <footer className="border-t border-18-border/30 bg-18-bg">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-6 text-sm text-gray-500">
           <div className="flex items-center gap-2">
             <div className="bg-18-orange rounded-full h-6 w-6 flex items-center justify-center">
               <span className="text-white font-bold text-[10px]">PFT</span>
             </div>
             <span>Personal FT · Made for young professionals</span>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             <Link href="/login" className="hover:text-white transition-colors">Sign in</Link>
             <Link href="/signup" className="hover:text-white transition-colors">Sign up</Link>
+            <span className="text-white/20 hidden md:inline">·</span>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/refund" className="hover:text-white transition-colors">Refund</Link>
+            <a
+              href="mailto:vinayteja23@gmail.com"
+              className="hover:text-white transition-colors"
+            >
+              Contact
+            </a>
           </div>
         </div>
       </footer>
