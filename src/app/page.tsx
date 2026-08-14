@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import {
   Mic,
   Eye,
@@ -22,14 +20,13 @@ import {
 const ROTATING_WORDS = ['Track', 'Plan', 'Grow'];
 
 export default function LandingPage() {
-  const router = useRouter();
   const [wordIdx, setWordIdx] = useState(0);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) router.push('/dashboard');
-    });
-  }, [router]);
+  // Deliberately NOT auto-redirecting signed-in users away from `/`. Some
+  // people just want to re-read the landing copy or share the link with a
+  // friend and land back on it themselves. The Sign-in link routes to
+  // /login which does its own "already signed in → dashboard" bounce, so
+  // the only extra tap for a signed-in user is one click through /login.
 
   useEffect(() => {
     const id = setInterval(() => setWordIdx((i) => (i + 1) % ROTATING_WORDS.length), 2400);
@@ -685,12 +682,7 @@ export default function LandingPage() {
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
             <Link href="/refund" className="hover:text-white transition-colors">Refund</Link>
-            <a
-              href="mailto:vinayteja23@gmail.com"
-              className="hover:text-white transition-colors"
-            >
-              Contact
-            </a>
+            <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
           </div>
         </div>
       </footer>

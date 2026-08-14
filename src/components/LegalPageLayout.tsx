@@ -71,10 +71,11 @@ export default function LegalPageLayout({ title, updatedOn, children }: Props) {
             </div>
             <span>Personal FT</span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-5 flex-wrap justify-center">
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
             <Link href="/refund" className="hover:text-white transition-colors">Refund</Link>
+            <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
           </div>
         </div>
       </footer>
