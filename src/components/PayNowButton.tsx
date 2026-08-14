@@ -59,14 +59,21 @@ export default function PayNowButton({ onPaid, className, children }: Props) {
       const ok = await loadRazorpayScript();
       if (!ok || !window.Razorpay) throw new Error('Razorpay checkout failed to load. Check your internet.');
 
-      // 2. Ask our server to create an order.
-      const orderRes = await fetch('/api/razorpay/create-order', { method: 'POST' });
+      // 2. Get the current user's session + email for prefill + verify.
+      //    create-order needs the JWT so it can embed user_id in the
+      //    order's `notes` field — the webhook route reads that back on
+      //    payment.captured events to identify the paying user.
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user || !session?.access_token) throw new Error('You must be signed in to pay');
+
+      // 3. Ask our server to create an order.
+      const orderRes = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
       const orderData = await orderRes.json();
       if (!orderRes.ok) throw new Error(orderData.error || 'Could not create order');
-
-      // 3. Get the current user's id + email for prefill + verify.
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('You must be signed in to pay');
 
       // 4. Launch the checkout modal.
       const rzp = new window.Razorpay({
