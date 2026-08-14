@@ -51,9 +51,11 @@ export default function TermsPage() {
 
       <h2>4. Refunds</h2>
       <p>
-        We offer a straightforward 7-day refund window after purchase. Full
-        details are in our{' '}
-        <a href="/refund">Refund Policy</a>.
+        All purchases are final. The 7-day free trial is your evaluation
+        window &mdash; please use it fully before paying. We only refund in
+        specific situations (duplicate charge, extended outage on our side,
+        or a full service shutdown within your first year). Full details are
+        in our <a href="/refund">Refund Policy</a>.
       </p>
 
       <h2>5. Acceptable use</h2>

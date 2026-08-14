@@ -2,102 +2,94 @@ import LegalPageLayout from '@/components/LegalPageLayout';
 
 export const metadata = {
   title: 'Refund Policy · Personal FT',
-  description:
-    'How refunds work for Personal FT — 7-day no-questions-asked window.',
+  description: 'All Personal FT purchases are final. The 7-day free trial is our refund window.',
 };
 
 export default function RefundPage() {
   return (
     <LegalPageLayout title="Refund Policy" updatedOn="14 August 2026">
       <p>
-        Personal FT is a one-time <strong>₹499 lifetime</strong> purchase after
-        a 7-day free trial. This page explains how refunds work if you change
-        your mind.
+        Personal FT is a one-time <strong>₹499 lifetime</strong> purchase
+        after a 7-day free trial. This page explains our refund position.
       </p>
 
-      <h2>The short version</h2>
+      {/* Prominent stance so nobody has to hunt for it */}
+      <div className="not-prose mt-6 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-5">
+        <p className="text-base font-semibold text-white leading-relaxed !my-0">
+          All purchases are final — we do not offer refunds after payment.
+        </p>
+        <p className="text-sm text-white/70 mt-2 !my-0">
+          That&apos;s why every new account gets a <strong>full 7-day free
+          trial</strong> with every feature unlocked, and no card required
+          to start. Please make full use of the trial to decide whether the
+          app is right for you before you pay.
+        </p>
+      </div>
+
+      <h2>1. The free trial is your evaluation window</h2>
+      <p>
+        Every new account gets 7 days of full access to Personal FT without
+        paying anything. Log expenses, add banks, try voice notes, set
+        budgets, run reports — every feature is on. If you don&apos;t pay
+        by day 8, the app switches to a paywall but your data stays on our
+        servers indefinitely, so you can always come back.
+      </p>
+      <p>
+        Because the trial is generous and gives you the same product a
+        paying user gets, we treat the purchase itself as a final decision.
+      </p>
+
+      <h2>2. When we do issue a refund</h2>
+      <p>The only situations where we&apos;ll refund you:</p>
       <ul>
-        <li>You get a <strong>7-day free trial</strong> before we ever ask for money — that&apos;s your first refund window</li>
-        <li>After you pay, you have <strong>7 more days</strong> to request a full refund — no questions asked</li>
-        <li>Just email <a href="mailto:vinayteja23@gmail.com">vinayteja23@gmail.com</a> from the account&apos;s email address and we&apos;ll refund your ₹499 back to the same payment method within 5–7 business days</li>
+        <li>
+          <strong>Duplicate charge:</strong> if Razorpay accidentally charges
+          you twice for the same account, we&apos;ll refund the duplicate in
+          full.
+        </li>
+        <li>
+          <strong>Extended outage on our side:</strong> if the app is
+          inaccessible for more than 48 continuous hours because of a
+          failure on our infrastructure (not on your network or a
+          third-party&apos;s side), we&apos;ll refund your ₹499 in full.
+        </li>
+        <li>
+          <strong>We shut the service down within your first year of
+          purchase:</strong> if Personal FT is discontinued within 12
+          months of the day you paid, we&apos;ll refund you in full.
+        </li>
       </ul>
 
-      <h2>1. The free trial comes first</h2>
-      <p>
-        Every new account gets full access to Personal FT for 7 days without
-        payment. This is deliberately generous — the goal is that you try the
-        app thoroughly and only pay if you know you want to keep using it. If
-        you don&apos;t pay by day 8, the app switches to a paywall but your
-        data stays on our servers indefinitely.
-      </p>
-
-      <h2>2. The 7-day post-purchase refund window</h2>
-      <p>
-        We understand that some things you can only tell after using the paid
-        version. So if you pay for lifetime access and change your mind
-        within <strong>7 calendar days from the payment date</strong>, we
-        will refund your ₹499 in full, no questions asked.
-      </p>
-      <p>
-        After day 7, the purchase is considered final and we&apos;re not able
-        to offer a refund — please make full use of the trial before paying.
-      </p>
-
-      <h2>3. How to request a refund</h2>
+      <h2>3. How to request a refund in those cases</h2>
       <ol>
         <li>
           Email <a href="mailto:vinayteja23@gmail.com">vinayteja23@gmail.com</a>
-          {' '}from the same email address that&apos;s on your Personal FT
-          account
+          {' '}from the account&apos;s email address
         </li>
-        <li>
-          Subject line: <strong>Refund request</strong>
-        </li>
-        <li>Include your Razorpay payment ID if you have it (found in the payment confirmation email; it starts with <code className="bg-18-surface-2 px-1.5 py-0.5 rounded text-xs">pay_</code>)</li>
-        <li>Tell us briefly what didn&apos;t work for you — this helps us fix things, but it&apos;s not required for the refund</li>
+        <li>Subject line: <strong>Refund request</strong></li>
+        <li>Include your Razorpay payment ID (starts with <code className="bg-18-surface-2 px-1.5 py-0.5 rounded text-xs">pay_</code>) from the payment confirmation email</li>
+        <li>Briefly explain which situation applies (duplicate, outage, service shutdown)</li>
       </ol>
       <p>
-        We&apos;ll confirm your request within one business day and initiate
-        the refund with Razorpay. From that point:
+        We&apos;ll confirm within one business day and, if the request is
+        valid, initiate the refund with Razorpay. From there:
       </p>
       <ul>
-        <li><strong>UPI, wallet, netbanking:</strong> money is usually back in your account within 3–5 business days</li>
-        <li><strong>Credit / debit card:</strong> allow 5–7 business days for it to appear on your statement</li>
+        <li><strong>UPI / wallet / netbanking:</strong> 3–5 business days back in your account</li>
+        <li><strong>Credit / debit card:</strong> 5–7 business days to appear on your statement</li>
       </ul>
 
-      <h2>4. What happens to your account after a refund</h2>
-      <p>
-        Once we process your refund, your access to Personal FT is downgraded
-        back to trial-expired state. You&apos;ll still be able to sign in and
-        export your data as CSV for the next 30 days so you don&apos;t lose
-        anything. After that, the account is deleted.
-      </p>
-      <p>
-        You&apos;re welcome to sign up again later if you change your mind —
-        but note that the free trial only applies to first-time paying users,
-        so a re-signup after a refund goes straight to the paywall.
-      </p>
-
-      <h2>5. Exceptions</h2>
-      <p>We can&apos;t offer refunds in the following cases:</p>
+      <h2>4. Cases we can&apos;t refund</h2>
       <ul>
-        <li>More than 7 days have passed since payment</li>
-        <li>The account has been suspended or terminated for violating our <a href="/terms">Terms &amp; Conditions</a></li>
-        <li>The payment shows signs of fraud (stolen card, chargeback in progress, etc.)</li>
+        <li>Change of mind after the trial ended and you paid anyway</li>
+        <li>&ldquo;I didn&apos;t use it enough&rdquo; after purchase</li>
+        <li>Accounts suspended for violating our <a href="/terms">Terms &amp; Conditions</a></li>
+        <li>Payments flagged for fraud (stolen card, chargeback in progress, etc.)</li>
       </ul>
 
-      <h2>6. If something is our fault</h2>
+      <h2>5. Contact</h2>
       <p>
-        If Personal FT is inaccessible for more than 48 continuous hours due
-        to an outage on our side (not on the user&apos;s connection or a
-        third-party provider&apos;s side), we&apos;ll refund you in full even
-        if the 7-day window has passed. Just email us and mention the outage
-        dates you experienced.
-      </p>
-
-      <h2>7. Contact</h2>
-      <p>
-        Any questions about this policy or the refund process, email{' '}
+        Questions about this policy, email{' '}
         <a href="mailto:vinayteja23@gmail.com">vinayteja23@gmail.com</a>.
       </p>
     </LegalPageLayout>
