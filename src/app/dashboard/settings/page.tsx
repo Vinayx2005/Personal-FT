@@ -1,17 +1,18 @@
 'use client';
 
-// Settings — account-level knobs only. Banks/cards and categories moved
-// into their own routes (/dashboard/banks and /dashboard/categories),
-// reachable from the More tab, so this page is now three things:
-//   • Password  (change if you have one, set if OAuth-only)
-//   • Sign out
-//   • Danger zone (permanent account deletion)
+// Settings — account-level knobs plus, on desktop, the Banks and
+// Categories managers. Mobile keeps Banks and Categories on their own
+// routes (/dashboard/banks, /dashboard/categories) reached from the
+// More tab; desktop users are used to finding them alongside password
+// and account controls, so we render them inline here behind md:block.
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 import { useRouter } from 'next/navigation';
 import { Trash2, X, AlertTriangle, Lock, Eye, EyeOff, Check, LogOut } from 'lucide-react';
+import BanksManager from '@/components/BanksManager';
+import CategoriesManager from '@/components/CategoriesManager';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -162,6 +163,16 @@ export default function SettingsPage() {
           H1 dropped so the password / sign-out / danger blocks show
           higher up on the mobile viewport. */}
 
+      {/* Banks + Categories — desktop only. On mobile these live on their
+          own routes reached from the More tab; showing them here too
+          would double the scroll for the same content. */}
+      <div className="hidden md:block">
+        <BanksManager />
+      </div>
+      <div className="hidden md:block">
+        <CategoriesManager />
+      </div>
+
       {/* ---------- ACCOUNT SECURITY (PASSWORD) ---------- */}
       <div className="bg-18-surface border border-18-border rounded-2xl p-5">
         <div className="flex items-start gap-3 mb-4">
@@ -229,14 +240,20 @@ export default function SettingsPage() {
               />
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowPasswords((v) => !v)}
-              className="inline-flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
-            >
-              {showPasswords ? <EyeOff size={14} /> : <Eye size={14} />}
-              {showPasswords ? 'Hide passwords' : 'Show passwords'}
-            </button>
+            {/* Show/hide toggle sits on its own row and left-aligned so it
+                doesn't share a line with the submit button — on mobile the
+                two would otherwise collide and the "Set password" pill got
+                squished against the right edge. */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowPasswords((v) => !v)}
+                className="inline-flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
+              >
+                {showPasswords ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showPasswords ? 'Hide passwords' : 'Show passwords'}
+              </button>
+            </div>
 
             {passwordFeedback && (
               <div
@@ -258,7 +275,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={savingPassword || !newPassword || !confirmPassword || (hasPassword && !currentPassword)}
-              className="inline-flex items-center gap-2 bg-18-orange text-white rounded-full px-5 py-2.5 text-sm font-bold hover:brightness-110 transition-all shadow-[0_8px_24px_-8px_rgba(243,115,53,0.6)] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-18-orange text-white rounded-full px-5 py-3 sm:py-2.5 text-sm font-bold hover:brightness-110 transition-all shadow-[0_8px_24px_-8px_rgba(243,115,53,0.6)] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Lock size={14} />
               {savingPassword
