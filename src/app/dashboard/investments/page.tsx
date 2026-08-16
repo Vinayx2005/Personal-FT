@@ -356,20 +356,28 @@ export default function InvestmentsPage() {
     }, 0);
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div className="space-y-4">
+      {/* Page header — same shape as Entries */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-2">Investments</h1>
-          <p className="text-18-dark-text">Track FDs, Smallcases, Stocks, Mutual Funds and more</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            Investments
+          </h1>
+          <p className="text-sm text-white/50 mt-0.5">
+            Track FDs, Smallcases, Stocks, Mutual Funds and more.
+          </p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
-          <Plus size={16} />
-          Add Investment
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-18-orange border border-18-orange rounded-full px-4 py-2 hover:brightness-110 transition-all"
+        >
+          <Plus size={14} />
+          Add investment
         </button>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="card !bg-18-orange/15 !border-18-orange/40">
           <p className="text-xs font-bold uppercase text-white">Total</p>
           <h3 className="text-base md:text-lg font-bold text-white break-words">{formatCurrency(total)}</h3>
@@ -385,7 +393,7 @@ export default function InvestmentsPage() {
       </div>
 
       {/* -------- SIP section -------- */}
-      <div className="card bg-18-surface border-18-border mb-6">
+      <div className="card bg-18-surface border-18-border">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-18-orange/20 border border-18-orange/40 flex items-center justify-center">
@@ -710,7 +718,7 @@ export default function InvestmentsPage() {
       </div>
 
       {showForm && (
-        <div className="card bg-18-surface border-18-border mb-6">
+        <div className="card bg-18-surface border-18-border">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold">New Investment</h3>
             <button onClick={() => setShowForm(false)} className="text-white hover:text-18-orange">

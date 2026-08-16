@@ -345,16 +345,11 @@ export default function LogsPage() {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Activity Log</h1>
-        <p className="text-sm text-18-dark-text mt-1">
-          Every add, update, delete, import and export is recorded here.
-        </p>
-      </div>
+    <div className="space-y-4">
+      {/* Page identity comes from the More tab — H1 dropped for space. */}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-3">
         <div className="w-full sm:flex-1 sm:min-w-[240px]">
           <label className="form-label">Search</label>
           <input
@@ -397,25 +392,26 @@ export default function LogsPage() {
         </div>
       </div>
 
-      {/* Summary strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="card">
-          <p className="text-xs uppercase font-bold text-18-dark-text">Total events</p>
-          <h3 className="text-xl font-bold text-white">{logs.length}</h3>
+      {/* Summary strip — 4-across on mobile so all four counts fit in one
+          swipe. Compact tile style consistent with Entries totals strip. */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-4">
+        <div className="bg-18-surface border border-18-border rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Events</p>
+          <p className="text-sm sm:text-xl font-bold text-white tabular-nums mt-0.5">{logs.length}</p>
         </div>
-        <div className="card">
-          <p className="text-xs uppercase font-bold text-18-dark-text">Showing</p>
-          <h3 className="text-xl font-bold text-white">{filtered.length}</h3>
+        <div className="bg-18-surface border border-18-border rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Showing</p>
+          <p className="text-sm sm:text-xl font-bold text-white tabular-nums mt-0.5">{filtered.length}</p>
         </div>
-        <div className="card">
-          <p className="text-xs uppercase font-bold text-18-dark-text">Modules</p>
-          <h3 className="text-xl font-bold text-white">{entities.length}</h3>
+        <div className="bg-18-surface border border-18-border rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Modules</p>
+          <p className="text-sm sm:text-xl font-bold text-white tabular-nums mt-0.5">{entities.length}</p>
         </div>
-        <div className="card">
-          <p className="text-xs uppercase font-bold text-18-dark-text">Last event</p>
-          <h3 className="text-sm font-bold text-white">
+        <div className="bg-18-surface border border-18-border rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">Latest</p>
+          <p className="text-[11px] sm:text-sm font-bold text-white mt-0.5 truncate">
             {logs[0] ? formatTime(logs[0].created_at) : '—'}
-          </h3>
+          </p>
         </div>
       </div>
 

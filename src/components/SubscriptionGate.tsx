@@ -105,7 +105,7 @@ export default function SubscriptionGate() {
     const label =
       status.daysLeft === 1 ? '1 day left' : `${status.daysLeft} days left`;
     return (
-      <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-40">
+      <div className="fixed bottom-24 md:bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-40">
         <div className="bg-18-surface border border-18-orange/50 rounded-2xl p-4 shadow-[0_20px_60px_-10px_rgba(0,0,0,0.9)]">
           <div className="flex items-start gap-3">
             <div className="h-9 w-9 rounded-full bg-18-orange/15 border border-18-orange/40 flex items-center justify-center shrink-0">

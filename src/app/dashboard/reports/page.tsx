@@ -7,7 +7,8 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Download, X } from 'lucide-react';
 import { logAction } from '@/lib/auditLog';
-import DateRangePicker from '@/components/DateRangePicker';
+import PeriodPicker from '@/components/PeriodPicker';
+import AnalyticsTabs from '@/components/AnalyticsTabs';
 import { DateRange, rangeFor } from '@/lib/dateRanges';
 
 interface PnLData {
@@ -34,7 +35,9 @@ export default function ReportsPage() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
-  const [range, setRange] = useState<DateRange>(rangeFor('current_fy'));
+  // Was 'current_fy' — that preset is retired. Default to the current
+  // calendar month to match every other page.
+  const [range, setRange] = useState<DateRange>(rangeFor('current_month'));
 
   // Category palette — all readable on the dark #0A0A0A background
   const COLORS = [
@@ -882,45 +885,46 @@ export default function ReportsPage() {
   const totalProfit = totalRevenue - totalExpenses;
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold text-white">Reports & Analytics</h1>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={exportPDF} className="btn btn-outline flex items-center gap-2">
-            <Download size={18} />
-            Download Report
-          </button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      {/* Sub-nav across Dashboard / Insights / Reports. The active tab
+          labels the page — no separate H1 / subtitle needed. */}
+      <AnalyticsTabs />
 
-      <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-3">
-        <label className="form-label !mb-0">Range:</label>
-        <DateRangePicker value={range} onChange={setRange} />
-      </div>
+      <PeriodPicker value={range} onChange={setRange} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card bg-green-900/20 border-green-800/40">
-          <p className="text-green-300 text-sm font-bold uppercase mb-2">Total Revenue</p>
-          <h3 className="text-xl font-bold text-green-300">{formatCurrency(totalRevenue)}</h3>
-          <p className="text-xs text-green-400 mt-2">{pnlData.length} months</p>
+      {/* KPI trio — 3-across on mobile (was 1-column stack of 3 giant
+          cards, taking ~300 px of scroll for three numbers). Same compact
+          totals-strip style as the Entries page. Sub-caption drops on
+          mobile so the value has full width. */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="bg-green-900/20 border border-green-800/40 rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-green-300 font-bold">Revenue</p>
+          <p className="text-green-300 font-bold text-sm sm:text-base tabular-nums mt-0.5">
+            {formatCurrency(totalRevenue)}
+          </p>
+          <p className="text-[10px] text-green-400 mt-1 hidden sm:block">
+            {pnlData.length} {pnlData.length === 1 ? 'month' : 'months'}
+          </p>
         </div>
-        <div className="card bg-red-900/20 border-red-800/40">
-          <p className="text-red-300 text-sm font-bold uppercase mb-2">Total Expenses</p>
-          <h3 className="text-xl font-bold text-red-300">{formatCurrency(totalExpenses)}</h3>
-          <p className="text-xs text-red-400 mt-2">Across all categories</p>
+        <div className="bg-red-900/20 border border-red-800/40 rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-red-300 font-bold">Expenses</p>
+          <p className="text-red-300 font-bold text-sm sm:text-base tabular-nums mt-0.5">
+            {formatCurrency(totalExpenses)}
+          </p>
+          <p className="text-[10px] text-red-400 mt-1 hidden sm:block">Across all categories</p>
         </div>
-        <div className="card !bg-18-orange/15 !border-18-orange/40">
-          <p className="text-sm font-bold uppercase mb-2 text-white">Net</p>
-          <h3 className={`text-xl font-bold ${totalProfit >= 0 ? 'text-white' : 'text-red-300'}`}>
+        <div className="bg-18-orange/15 border border-18-orange/40 rounded-xl p-3">
+          <p className="text-[10px] uppercase tracking-wider text-white font-bold">Net</p>
+          <p className={`font-bold text-sm sm:text-base tabular-nums mt-0.5 ${totalProfit >= 0 ? 'text-white' : 'text-red-300'}`}>
             {formatCurrency(totalProfit)}
-          </h3>
-          <p className="text-xs mt-2 text-white/70">Income − Expenses</p>
+          </p>
+          <p className="text-[10px] text-white/70 mt-1 hidden sm:block">Income − Expenses</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h2 className="text-xl font-bold text-white mb-4">Monthly PnL Trend</h2>
+          <h2 className="text-base sm:text-xl font-bold text-white mb-3 sm:mb-4">Monthly PnL trend</h2>
           {pnlData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={pnlData}>
@@ -968,7 +972,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-bold text-white mb-4">Monthly Comparison</h2>
+          <h2 className="text-base sm:text-xl font-bold text-white mb-3 sm:mb-4">Monthly comparison</h2>
           {monthlyComparison.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={monthlyComparison}>
@@ -998,7 +1002,7 @@ export default function ReportsPage() {
       </div>
 
       <div className="card">
-        <h2 className="text-xl font-bold text-white mb-6">Expense Breakdown by Category</h2>
+        <h2 className="text-base sm:text-xl font-bold text-white mb-4 sm:mb-6">Expense breakdown by category</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {categoryBreakdown.length > 0 ? (
             <>
@@ -1096,7 +1100,7 @@ export default function ReportsPage() {
               </div>
 
               <div>
-                <h3 className="font-bold text-white mb-4">Category Details</h3>
+                <h3 className="text-sm font-bold text-white mb-3 uppercase tracking-wider text-white/70">Category details</h3>
                 <div className="space-y-3">
                   {categoryBreakdown.map((cat, idx) => (
                     <button
@@ -1130,9 +1134,9 @@ export default function ReportsPage() {
       </div>
 
       {/* ---- Budget vs Actual ---- */}
-      <div className="card bg-18-surface mt-8 mb-6">
+      <div className="card bg-18-surface">
         <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
-          <h2 className="text-xl font-bold text-white">Budget vs Actual</h2>
+          <h2 className="text-base sm:text-xl font-bold text-white">Budget vs actual</h2>
           <p className="text-xs text-white/50">
             Aggregated across {pnlData.length} month{pnlData.length === 1 ? '' : 's'} in range
           </p>

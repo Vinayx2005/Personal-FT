@@ -8,7 +8,7 @@ import { Plus, Edit2, Trash2, X, Upload, Download, ArrowRightLeft, Check } from 
 import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
 import { logAction } from '@/lib/auditLog';
 import CategorySelect from '@/components/CategorySelect';
-import DateRangePicker from '@/components/DateRangePicker';
+import PeriodPicker from '@/components/PeriodPicker';
 import MultiSelectFilter from '@/components/MultiSelectFilter';
 import { DateRange, defaultRange } from '@/lib/dateRanges';
 import { groupByMonth } from '@/lib/utils';
@@ -430,11 +430,19 @@ export default function IncomePage() {
   const realTxCount = realIncome.length;
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-2xl font-bold text-white">Income</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <DateRangePicker value={range} onChange={setRange} />
+    <div className="space-y-4">
+      {/* Page header — same shape as Entries */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          Income
+        </h1>
+        <p className="text-sm text-white/50 mt-0.5">
+          Salary, side income, and other credits.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <PeriodPicker value={range} onChange={setRange} />
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
           <button
             onClick={() => downloadCSVTemplate('income')}
             className="btn btn-outline hidden md:inline-flex"
@@ -486,7 +494,7 @@ export default function IncomePage() {
           resetForm();
           setShowForm(true);
         }}
-        className="md:hidden fixed bottom-6 right-6 z-30 h-14 w-14 rounded-full bg-18-orange text-white flex items-center justify-center shadow-[0_10px_40px_-5px_rgba(243,115,53,0.6)] hover:brightness-110 active:scale-95 transition-all"
+        className="md:hidden fixed bottom-24 right-6 z-30 h-14 w-14 rounded-full bg-18-orange text-white flex items-center justify-center shadow-[0_10px_40px_-5px_rgba(243,115,53,0.6)] hover:brightness-110 active:scale-95 transition-all"
         aria-label="Add income"
       >
         <Plus size={26} />

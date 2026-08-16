@@ -5,12 +5,10 @@ import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 import Link from 'next/link';
-import GlobalSearch from '@/components/GlobalSearch';
 import TourGuide from '@/components/TourGuide';
 import SubscriptionGate from '@/components/SubscriptionGate';
+import BottomNav from '@/components/BottomNav';
 import {
-  Menu,
-  X,
   LayoutDashboard,
   IndianRupee,
   TrendingUp,
@@ -61,8 +59,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);        // desktop expanded
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);   // mobile drawer
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -203,14 +199,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
           <span className="text-white font-bold text-base">Personal FT</span>
         </Link>
-        {/* Close on mobile */}
-        <button
-          onClick={() => setMobileNavOpen(false)}
-          className="text-gray-500 hover:text-white transition-colors md:hidden"
-          aria-label="Close menu"
-        >
-          <X size={18} />
-        </button>
       </div>
 
       {/* Nav */}
@@ -228,7 +216,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setMobileNavOpen(false)}
                     className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                       isActive
                         ? 'bg-18-orange/15 text-white shadow-[inset_0_0_0_1px_rgba(243,115,53,0.4)]'
@@ -280,52 +267,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-18-bg text-white font-poppins">
-      {/* Mobile backdrop */}
-      {mobileNavOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
-          onClick={() => setMobileNavOpen(false)}
-        />
-      )}
-
-      {/* Mobile drawer sidebar */}
-      <aside
-        className={`fixed left-3 top-3 bottom-3 w-64 bg-18-surface border border-18-border rounded-2xl flex flex-col shadow-2xl z-40 transition-transform md:hidden ${
-          mobileNavOpen ? 'translate-x-0' : '-translate-x-[110%]'
-        }`}
-      >
-        {SidebarContent}
-      </aside>
-
-      {/* Desktop floating sidebar */}
+      {/* Desktop floating sidebar — unchanged; mobile no longer uses it */}
       <aside className="hidden md:flex fixed left-4 top-4 bottom-4 w-64 bg-18-surface border border-18-border rounded-2xl flex-col shadow-2xl z-30">
         {SidebarContent}
       </aside>
 
-      {/* Main column */}
+      {/* Main column. No mobile top bar — the profile avatar was moved
+          into the "More" tab of the bottom nav, so pages get the full
+          viewport width and can start their H1 flush with the top. */}
       <div className="md:pl-[288px] min-h-screen flex flex-col">
-        {/* Top bar */}
-        <header className="sticky top-0 z-20 px-4 md:px-6 pt-4 pb-3 bg-18-bg/80 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileNavOpen(true)}
-              className="md:hidden h-10 w-10 rounded-full bg-18-surface border border-18-border flex items-center justify-center text-gray-400 hover:text-white"
-              aria-label="Open menu"
-            >
-              <Menu size={18} />
-            </button>
-
-            {/* Search pill — takes most of the width */}
-            <div className="flex-1">
-              <GlobalSearch />
-            </div>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 px-4 md:px-6 pb-6 pt-2">{children}</main>
+        <main className="flex-1 px-4 md:px-6 pb-24 md:pb-6 pt-4 md:pt-6">{children}</main>
       </div>
+
+      {/* Mobile-only bottom tab bar — Dashboard / Quick Add / Entries / Budget */}
+      <BottomNav />
+
       <TourGuide />
       <SubscriptionGate />
     </div>

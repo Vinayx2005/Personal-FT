@@ -8,10 +8,8 @@ import {
   TrendingUp,
   TrendingDown,
   Sparkles,
-  Flame,
   Wallet,
   Scale,
-  MoreHorizontal,
   ArrowUpRight,
   ArrowDownRight,
   Building2,
@@ -19,9 +17,9 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import DateRangePicker from '@/components/DateRangePicker';
+import PeriodPicker from '@/components/PeriodPicker';
+import AnalyticsTabs from '@/components/AnalyticsTabs';
 import { DateRange, defaultRange } from '@/lib/dateRanges';
-import { fetchCurrentStreak } from '@/lib/streak';
 
 interface DashboardData {
   banks: Bank[];
@@ -43,7 +41,7 @@ interface KpiCardProps {
 function KpiCard({ label, value, sub, icon: Icon, trend, glow = false }: KpiCardProps) {
   return (
     <div
-      className={`relative overflow-hidden bg-18-surface border border-18-border rounded-2xl p-5 hover:border-white/20 transition-all ${
+      className={`relative overflow-hidden bg-18-surface border border-18-border rounded-2xl p-3 sm:p-5 hover:border-white/20 transition-all ${
         glow ? 'shadow-[inset_0_0_120px_-20px_rgba(243,115,53,0.35)]' : ''
       }`}
     >
@@ -59,45 +57,42 @@ function KpiCard({ label, value, sub, icon: Icon, trend, glow = false }: KpiCard
       )}
 
       <div className="relative z-10">
-        {/* Header row */}
-        <div className="flex items-start justify-between mb-6">
-          <div className="h-10 w-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-white/80">
-            <Icon size={18} />
+        {/* Header row — compact on mobile (dropped the ⋯ button, which was
+            never wired up anyway). Icon shrinks so KPI cards fit two-across
+            without overflowing on narrow phones. */}
+        <div className="flex items-center gap-2 mb-2 sm:mb-4">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-white/80 shrink-0">
+            <Icon size={14} className="sm:hidden" />
+            <Icon size={18} className="hidden sm:block" />
           </div>
-          <button
-            className="text-white/40 hover:text-white/80 transition-colors p-1"
-            aria-label="More options"
-          >
-            <MoreHorizontal size={18} />
-          </button>
+          <p className="text-[11px] sm:text-sm text-white/70 truncate">{label}</p>
         </div>
 
-        {/* Label */}
-        <p className="text-sm text-white/70 mb-2">{label}</p>
+        {/* Value — smaller on mobile so the ₹ figure fits in a half-width
+            card without wrapping. */}
+        <h3 className="text-lg sm:text-2xl md:text-[2rem] xl:text-3xl 2xl:text-4xl font-black text-white tracking-tight leading-tight break-words">
+          {value}
+        </h3>
 
-        {/* Value + trend — flex-wrap so the trend chip drops to a new line
-            when the amount is too wide to fit beside it (large ₹ values on
-            narrow cards). */}
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2 min-w-0">
-          <h3 className="text-3xl md:text-[2rem] xl:text-3xl 2xl:text-4xl font-black text-white tracking-tight leading-none break-words">
-            {value}
-          </h3>
-          {trend && (
-            <span
-              className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${
-                trend.direction === 'up'
-                  ? 'text-green-300 bg-green-900/40'
-                  : 'text-red-300 bg-red-900/40'
-              }`}
-            >
-              {trend.direction === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-              {trend.text}
-            </span>
-          )}
-        </div>
-
-        {/* Sub */}
-        {sub && <p className="text-xs text-white/50 mt-3">{sub}</p>}
+        {/* Trend chip + sub caption. On mobile they stack tight; on desktop
+            the trend sits beside the value. */}
+        {(trend || sub) && (
+          <div className="mt-1 sm:mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            {trend && (
+              <span
+                className={`inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                  trend.direction === 'up'
+                    ? 'text-green-300 bg-green-900/40'
+                    : 'text-red-300 bg-red-900/40'
+                }`}
+              >
+                {trend.direction === 'up' ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                {trend.text}
+              </span>
+            )}
+            {sub && <p className="text-[10px] sm:text-xs text-white/50 truncate">{sub}</p>}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -118,17 +113,12 @@ export default function DashboardPage() {
   // which naturally rolls forward as the date changes (yesterday's closing
   // becomes today's opening the instant the client's clock ticks past 00:00).
   const [bankNetBeforeToday, setBankNetBeforeToday] = useState<Record<number, number>>({});
-  const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DateRange>(defaultRange());
   // Bumped whenever we want to force a refetch (route entry, tab focus,
   // pull-to-refresh in the future). Cheaper than plumbing a global store.
   const [refreshTick, setRefreshTick] = useState(0);
   const pathname = usePathname();
-
-  useEffect(() => {
-    fetchCurrentStreak().then(setStreak);
-  }, [refreshTick]);
 
   // Refetch when the browser tab regains focus — covers backgrounded PWAs
   // and users switching between tabs after adding a spend elsewhere.
@@ -236,24 +226,13 @@ export default function DashboardPage() {
   const savingsRate = data.totalIncome > 0 ? Math.round((profit / data.totalIncome) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-black text-white tracking-tight">Dashboard</h1>
-            {streak > 0 && (
-              <span className="inline-flex items-center gap-1.5 bg-18-orange/15 border border-18-orange/40 rounded-full px-3 py-1 text-xs font-bold text-18-orange shadow-[0_0_20px_-5px_rgba(243,115,53,0.5)]">
-                <Flame size={12} /> {streak}-day streak
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-white/50">
-            Here&apos;s where your money is going, in one look.
-          </p>
-        </div>
-        <DateRangePicker value={range} onChange={setRange} />
-      </div>
+    <div className="space-y-4">
+      {/* Sub-nav across Dashboard / Insights / Reports. Static (not sticky)
+          so it moves with the page but sits at the top of every analytics
+          screen so switching sections is one tap regardless of scroll. */}
+      <AnalyticsTabs />
+
+      <PeriodPicker value={range} onChange={setRange} />
 
       {/* Welcome onboarding — only for brand new users */}
       {isBrandNew && (
@@ -269,7 +248,7 @@ export default function DashboardPage() {
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href="/dashboard/settings"
+                  href="/dashboard/banks"
                   className="inline-flex items-center gap-2 bg-18-orange text-white font-semibold text-sm px-4 py-2 rounded-full hover:brightness-110 transition-all shadow-[0_8px_25px_-5px_rgba(243,115,53,0.5)]"
                 >
                   <Building2 size={14} /> Add your first bank
@@ -286,8 +265,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* KPI grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* KPI grid — two-across on mobile so all four numbers fit in one
+          swipe instead of stacking into a 1000-px scroll. */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <KpiCard
           label="Current Balance"
           value={formatCurrency(currentBalance)}
@@ -322,21 +302,24 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Banks section */}
+      {/* Banks section — compact card list. Name truncates so it never
+          wraps; amount right-aligns; the "today's opening" caption sits
+          in its own row below so both bank name and amount get full
+          width on their line. */}
       <div className="bg-18-surface border border-18-border rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
-          <div>
-            <h2 className="text-lg font-bold text-white">Your Banks/Cards</h2>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/5">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-white">Your banks &amp; cards</h2>
             <p className="text-xs text-white/50 mt-0.5">Balances and account overview</p>
           </div>
           <Link
-            href="/dashboard/settings"
-            className="text-xs font-semibold text-18-orange hover:underline"
+            href="/dashboard/banks"
+            className="text-xs font-semibold text-18-orange hover:underline shrink-0"
           >
             Manage →
           </Link>
         </div>
-        <div className="p-6">
+        <div className="p-3 sm:p-4">
           {data.banks.length > 0 ? (
             <div className="space-y-2">
               {data.banks.map((bank, i) => {
@@ -350,10 +333,10 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={bank.id}
-                    className="flex justify-between items-center p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-18-orange/30 transition-all group"
+                    className="p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-18-orange/30 transition-all group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 ${
                         ['bg-orange-500/20 text-orange-300',
                          'bg-blue-500/20 text-blue-300',
                          'bg-purple-500/20 text-purple-300',
@@ -361,18 +344,16 @@ export default function DashboardPage() {
                       }`}>
                         {bank.bank_name.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <p className="font-semibold text-white">{bank.bank_name}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-white group-hover:text-18-orange transition-colors">
+                      <p className="font-semibold text-white text-sm truncate flex-1 min-w-0">
+                        {bank.bank_name}
+                      </p>
+                      <p className={`font-bold tabular-nums text-sm shrink-0 whitespace-nowrap ${current < 0 ? 'text-red-300' : 'text-white'} group-hover:text-18-orange transition-colors`}>
                         {formatCurrency(current)}
                       </p>
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider mt-0.5">
-                        Today&apos;s opening {formatCurrency(todayOpening)}
-                      </p>
                     </div>
+                    <p className="text-[10px] text-white/40 uppercase tracking-wider mt-1.5 pl-12">
+                      Today&apos;s opening {formatCurrency(todayOpening)}
+                    </p>
                   </div>
                 );
               })}
@@ -384,7 +365,7 @@ export default function DashboardPage() {
               </div>
               <p className="text-white/60 mb-4">No banks yet.</p>
               <Link
-                href="/dashboard/settings"
+                href="/dashboard/banks"
                 className="inline-flex items-center gap-2 bg-18-orange text-white font-semibold text-sm px-4 py-2 rounded-full hover:brightness-110 transition-all"
               >
                 <Building2 size={14} /> Add your first bank

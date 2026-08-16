@@ -17,42 +17,25 @@ const addDays = (d: Date, n: number) => {
   return x;
 };
 
-// Indian financial year: Apr 1 → Mar 31
-export const financialYearFor = (d: Date): { start: Date; end: Date; label: string } => {
-  const m = d.getMonth();
-  const y = d.getFullYear();
-  const startYear = m < 3 ? y - 1 : y;
-  return {
-    start: new Date(startYear, 3, 1),
-    end: new Date(startYear + 1, 2, 31),
-    label: `${startYear}-${String(startYear + 1).slice(-2)}`,
-  };
-};
-
+// Trimmed to the six presets users actually reach for. Older keys
+// (last_week / last_14 / last_30 / current_fy / last_fy) were removed
+// per feedback that the picker was too crowded. The type intentionally
+// keeps 'custom' as an option so users can still pick any arbitrary
+// window from the two date inputs.
 export type PresetKey =
   | 'today'
   | 'yesterday'
   | 'last_7'
-  | 'last_week'
-  | 'last_14'
-  | 'last_30'
   | 'last_month'
   | 'current_month'
-  | 'current_fy'
-  | 'last_fy'
   | 'custom';
 
 export const PRESET_LABELS: Record<PresetKey, string> = {
   today: 'Today',
   yesterday: 'Yesterday',
   last_7: 'Last 7 days',
-  last_week: 'Last week',
-  last_14: 'Last 14 days',
-  last_30: 'Last 30 days',
   last_month: 'Last month',
   current_month: 'This month',
-  current_fy: 'Current FY',
-  last_fy: 'Last FY',
   custom: 'Custom',
 };
 
@@ -67,19 +50,6 @@ export const rangeFor = (preset: PresetKey, now: Date = new Date()): DateRange =
     }
     case 'last_7':
       return { from: iso(addDays(today, -6)), to: iso(today) };
-    case 'last_week': {
-      // Previous Mon–Sun
-      const dow = today.getDay(); // 0 = Sun, 1 = Mon
-      const daysSinceMon = (dow + 6) % 7;
-      const thisMon = addDays(today, -daysSinceMon);
-      const lastMon = addDays(thisMon, -7);
-      const lastSun = addDays(lastMon, 6);
-      return { from: iso(lastMon), to: iso(lastSun) };
-    }
-    case 'last_14':
-      return { from: iso(addDays(today, -13)), to: iso(today) };
-    case 'last_30':
-      return { from: iso(addDays(today, -29)), to: iso(today) };
     case 'current_month': {
       const s = new Date(today.getFullYear(), today.getMonth(), 1);
       const e = new Date(today.getFullYear(), today.getMonth() + 1, 0);
@@ -90,18 +60,66 @@ export const rangeFor = (preset: PresetKey, now: Date = new Date()): DateRange =
       const e = new Date(today.getFullYear(), today.getMonth(), 0);
       return { from: iso(s), to: iso(e) };
     }
-    case 'current_fy': {
-      const fy = financialYearFor(today);
-      return { from: iso(fy.start), to: iso(fy.end) };
-    }
-    case 'last_fy': {
-      const prev = new Date(today.getFullYear() - 1, today.getMonth(), 1);
-      const fy = financialYearFor(prev);
-      return { from: iso(fy.start), to: iso(fy.end) };
-    }
     case 'custom':
       return { from: iso(today), to: iso(today) };
   }
 };
 
 export const defaultRange = (): DateRange => rangeFor('current_month');
+
+// Shift a DateRange one "period" earlier (dir = -1) or later (dir = +1),
+// inferring the period from the shape of the range itself:
+//   - single day (from == to)             → shift by 1 day
+//   - full calendar month (1st → last)    → shift by 1 month
+//   - Indian financial year (Apr 1→Mar 31)→ shift by 1 year
+//   - anything else                        → shift by the range width in days
+// Powers the prev/next chevrons around the Entries date-range picker so
+// users can walk through "This month" → previous months, "Today" → yesterday,
+// "Current FY" → last FY, "Last 30" → the 30 days before that, etc.
+export const shiftRange = (range: DateRange, dir: -1 | 1): DateRange => {
+  const parse = (s: string) => {
+    const [y, m, d] = s.slice(0, 10).split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
+  const from = parse(range.from);
+  const to = parse(range.to);
+
+  // Single day
+  if (range.from === range.to) {
+    const s = addDays(from, dir);
+    return { from: iso(s), to: iso(s) };
+  }
+
+  // Full calendar month (from = 1st of month, to = last day of same month)
+  const lastOfFromMonth = new Date(from.getFullYear(), from.getMonth() + 1, 0);
+  const isFullMonth =
+    from.getDate() === 1 &&
+    to.getFullYear() === from.getFullYear() &&
+    to.getMonth() === from.getMonth() &&
+    to.getDate() === lastOfFromMonth.getDate();
+  if (isFullMonth) {
+    const newStart = new Date(from.getFullYear(), from.getMonth() + dir, 1);
+    const newEnd = new Date(from.getFullYear(), from.getMonth() + dir + 1, 0);
+    return { from: iso(newStart), to: iso(newEnd) };
+  }
+
+  // Indian FY (Apr 1 of Y → Mar 31 of Y+1)
+  const isFY =
+    from.getMonth() === 3 &&
+    from.getDate() === 1 &&
+    to.getMonth() === 2 &&
+    to.getDate() === 31 &&
+    to.getFullYear() === from.getFullYear() + 1;
+  if (isFY) {
+    const newStart = new Date(from.getFullYear() + dir, 3, 1);
+    const newEnd = new Date(from.getFullYear() + dir + 1, 2, 31);
+    return { from: iso(newStart), to: iso(newEnd) };
+  }
+
+  // Fallback: shift by width. Width is inclusive of both endpoints.
+  const widthDays =
+    Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
+  const newFrom = addDays(from, dir * widthDays);
+  const newTo = addDays(newFrom, widthDays - 1);
+  return { from: iso(newFrom), to: iso(newTo) };
+};

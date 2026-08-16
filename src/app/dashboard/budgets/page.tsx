@@ -317,15 +317,11 @@ export default function BudgetsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight mb-1">Budgets</h1>
-          <p className="text-sm text-white/50">
-            Set a monthly cap for each category — changes save automatically.
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* Page identity comes from the More tab that brought you here.
+          Just the "Copy last month" action at top-right; the month
+          picker below sets the context. */}
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={copyLastMonth}
@@ -360,8 +356,10 @@ export default function BudgetsPage() {
         </button>
       </div>
 
-      {/* Totals summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Totals summary — 3-across on mobile (was stacked 1-column, three
+          giant cards taking ~300 px of scroll for three numbers). Same
+          compact totals-strip style as Entries + Reports. */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[
           { label: 'Total budget', value: formatCurrency(totalBudget), tone: 'text-white' },
           { label: 'Spent so far', value: formatCurrency(totalActual), tone: 'text-rose-400' },
@@ -371,9 +369,9 @@ export default function BudgetsPage() {
             tone: totalRemaining >= 0 ? 'text-emerald-400' : 'text-rose-400',
           },
         ].map((k) => (
-          <div key={k.label} className="bg-18-surface border border-18-border rounded-2xl p-5 shadow-[inset_0_0_60px_-30px_rgba(243,115,53,0.15)]">
-            <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold mb-2">{k.label}</p>
-            <p className={`text-2xl font-bold tabular-nums ${k.tone}`}>{k.value}</p>
+          <div key={k.label} className="bg-18-surface border border-18-border rounded-xl p-3 sm:p-5 sm:shadow-[inset_0_0_60px_-30px_rgba(243,115,53,0.15)]">
+            <p className="text-[10px] uppercase tracking-wider text-white/40 font-bold">{k.label}</p>
+            <p className={`font-bold text-sm sm:text-2xl tabular-nums mt-0.5 ${k.tone}`}>{k.value}</p>
           </div>
         ))}
       </div>

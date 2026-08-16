@@ -615,8 +615,24 @@ export default function QuickChatPage() {
 
   return (
     // 100dvh so mobile keyboards shrink the chat area instead of scrolling it.
-    // Tighter height on phones (smaller top bar area) than on md+.
-    <div className="flex flex-col h-[calc(100dvh-88px)] md:h-[calc(100dvh-120px)]">
+    //
+    // The dashboard <main> reserves pb-24 (96 px) as a floor of clearance
+    // for the fixed BottomNav — a sensible default for scrollable pages so
+    // their last row doesn't hide under the nav. But this page owns its
+    // own scroll: the composer is pinned to the bottom of the container
+    // and should sit *right above* the nav, with no dead gap.
+    //
+    // BottomNav is min-h-[56 px] PLUS an outer paddingBottom of
+    // env(safe-area-inset-bottom) — on iOS notched devices that adds
+    // ~34 px, so the true nav height is ~90 px, not 56 px. Failing to
+    // subtract the safe-area inset would push the composer behind the
+    // home-indicator strip on iPhone.
+    //
+    // The fix: reclaim main's pb-24 reservation with -mb-24 on mobile,
+    // then size the container to 100dvh − pt-4 (16) − nav content (56)
+    // − safe-area-inset-bottom. Desktop still just subtracts the 48 px
+    // of main padding.
+    <div className="flex flex-col h-[calc(100dvh-72px-env(safe-area-inset-bottom))] -mb-24 md:h-[calc(100dvh-48px)] md:mb-0">
       {/* ----- Chat header ----- */}
       <div className="flex items-center gap-2 mb-2 md:mb-3 pb-2 md:pb-3 border-b border-18-border">
         <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-18-orange flex items-center justify-center shadow-[0_0_18px_-4px_rgba(243,115,53,0.7)] shrink-0">

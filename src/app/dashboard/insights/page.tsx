@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Transaction, Category } from '@/types';
 import { formatCurrency, parseLocalDate } from '@/lib/utils';
 import { fetchCurrentStreak } from '@/lib/streak';
+import AnalyticsTabs from '@/components/AnalyticsTabs';
 import {
   Flame,
   TrendingUp,
@@ -298,11 +299,8 @@ export default function InsightsPage() {
   // Empty state — no data at all
   if (txs.length === 0) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Insights</h1>
-          <p className="text-sm text-white/50 mt-1">Personal patterns and trends from your money.</p>
-        </div>
+      <div className="space-y-4">
+        <AnalyticsTabs />
         <div className="relative overflow-hidden bg-18-surface border border-18-border rounded-2xl p-10 text-center">
           <div className="h-14 w-14 rounded-2xl bg-18-orange/15 border border-18-orange/40 flex items-center justify-center mx-auto mb-4">
             <Lightbulb className="text-18-orange" size={26} />
@@ -326,22 +324,18 @@ export default function InsightsPage() {
     lastWeekSpend > 0 ? ((weekSpend - lastWeekSpend) / lastWeekSpend) * 100 : null;
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-3xl font-black text-white tracking-tight">Insights</h1>
-            {streak > 0 && (
-              <span className="inline-flex items-center gap-1.5 bg-18-orange/15 border border-18-orange/40 rounded-full px-3 py-1 text-xs font-bold text-18-orange shadow-[0_0_20px_-5px_rgba(243,115,53,0.5)]">
-                <Flame size={12} /> {streak}-day streak
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-white/50">
-            Personal patterns and trends from your money — refreshed on every visit.
-          </p>
+    <div className="space-y-4">
+      {/* Sub-nav across Dashboard / Insights / Reports. See the Dashboard
+          page for why the H1 + subtitle were dropped. */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <AnalyticsTabs />
         </div>
+        {streak > 0 && (
+          <span className="inline-flex items-center gap-1.5 bg-18-orange/15 border border-18-orange/40 rounded-full px-3 py-1 text-xs font-bold text-18-orange shadow-[0_0_20px_-5px_rgba(243,115,53,0.5)] shrink-0">
+            <Flame size={12} /> {streak}-day streak
+          </span>
+        )}
       </div>
 
       {/* Insight of the day — hero card */}
@@ -443,18 +437,19 @@ export default function InsightsPage() {
         </div>
       </div>
 
-      {/* Category trends */}
+      {/* Category trends — compacted for mobile: smaller container padding,
+          smaller row padding, single-line caption using "was ₹X" shorthand
+          so it truncates cleanly instead of wrapping mid-sentence when the
+          numbers get long. */}
       <div className="bg-18-surface border border-18-border rounded-2xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-18-orange" />
-              <h2 className="text-lg font-bold text-white">Category trends</h2>
-            </div>
-            <p className="text-xs text-white/50 mt-0.5">This month vs last month, top movers first.</p>
+        <div className="px-4 py-4 sm:px-6 sm:py-5 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-18-orange" />
+            <h2 className="text-base sm:text-lg font-bold text-white">Category trends</h2>
           </div>
+          <p className="text-xs text-white/50 mt-0.5">This month vs last month, top movers first.</p>
         </div>
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           {categoryTrends.length === 0 ? (
             <p className="text-white/60 text-sm">Not enough history yet. Log a few more months to see trends here.</p>
           ) : (
@@ -465,32 +460,28 @@ export default function InsightsPage() {
                 return (
                   <div
                     key={c.name}
-                    className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all"
+                    className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
-                          flat
-                            ? 'bg-white/5 text-white/50'
-                            : up
-                            ? 'bg-red-500/15 text-red-300'
-                            : 'bg-green-500/15 text-green-300'
-                        }`}
-                      >
-                        {flat ? <Minus size={16} /> : up ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-white truncate">{c.name}</p>
-                        <p className="text-xs text-white/50">
-                          {formatCurrency(c.thisMonth)}{' '}
-                          <span className="text-white/30">
-                            · last month {formatCurrency(c.lastMonth)}
-                          </span>
-                        </p>
-                      </div>
+                    <div
+                      className={`h-8 w-8 sm:h-9 sm:w-9 rounded-lg flex items-center justify-center shrink-0 ${
+                        flat
+                          ? 'bg-white/5 text-white/50'
+                          : up
+                          ? 'bg-red-500/15 text-red-300'
+                          : 'bg-green-500/15 text-green-300'
+                      }`}
+                    >
+                      {flat ? <Minus size={14} /> : up ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                      <p className="text-[11px] text-white/50 truncate">
+                        {formatCurrency(c.thisMonth)}
+                        <span className="text-white/30"> · was {formatCurrency(c.lastMonth)}</span>
+                      </p>
                     </div>
                     <span
-                      className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${
+                      className={`shrink-0 inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${
                         flat
                           ? 'text-white/60 bg-white/5'
                           : up
@@ -499,10 +490,10 @@ export default function InsightsPage() {
                       }`}
                     >
                       {flat ? (
-                        'no change'
+                        'flat'
                       ) : (
                         <>
-                          {up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                          {up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
                           {up ? '+' : ''}
                           {c.delta.toFixed(0)}%
                         </>
