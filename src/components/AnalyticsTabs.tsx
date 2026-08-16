@@ -26,8 +26,11 @@ const TABS: Tab[] = [
 export default function AnalyticsTabs() {
   const pathname = usePathname();
   return (
+    // Mobile-only: desktop already has direct links to all three pages
+    // in the left sidebar (Insights section), so a duplicate pill row
+    // would just eat vertical space above the content.
     <div
-      className="flex items-center gap-1 bg-18-surface border border-18-border rounded-full p-1"
+      className="md:hidden flex items-center gap-1 bg-18-surface border border-18-border rounded-full p-1"
       role="tablist"
       aria-label="Analytics section"
     >

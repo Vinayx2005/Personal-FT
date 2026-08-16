@@ -327,16 +327,7 @@ export default function InsightsPage() {
     <div className="space-y-4">
       {/* Sub-nav across Dashboard / Insights / Reports. See the Dashboard
           page for why the H1 + subtitle were dropped. */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <AnalyticsTabs />
-        </div>
-        {streak > 0 && (
-          <span className="inline-flex items-center gap-1.5 bg-18-orange/15 border border-18-orange/40 rounded-full px-3 py-1 text-xs font-bold text-18-orange shadow-[0_0_20px_-5px_rgba(243,115,53,0.5)] shrink-0">
-            <Flame size={12} /> {streak}-day streak
-          </span>
-        )}
-      </div>
+      <AnalyticsTabs />
 
       {/* Insight of the day — hero card */}
       <div className="relative overflow-hidden bg-18-surface border border-18-border rounded-2xl p-6 shadow-[inset_0_0_140px_-20px_rgba(243,115,53,0.35)]">
