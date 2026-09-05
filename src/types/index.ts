@@ -151,6 +151,18 @@ export interface MonthlySummary {
   net_change: number;
 }
 
+export interface Receivable {
+  id: number;
+  user_id: string;
+  from_name: string;
+  amount: number;
+  given_date: string;         // YYYY-MM-DD
+  received_date: string | null; // null = pending
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Budget {
   id: number;
   user_id: string;

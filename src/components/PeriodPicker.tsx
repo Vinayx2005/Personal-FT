@@ -21,7 +21,7 @@ interface Props {
 
 export default function PeriodPicker({ value, onChange, className = '' }: Props) {
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <div className={`flex flex-wrap items-center justify-center gap-2 ${className}`}>
       <button
         type="button"
         onClick={() => onChange(shiftRange(value, -1))}

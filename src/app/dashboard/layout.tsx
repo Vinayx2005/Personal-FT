@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
 import Link from 'next/link';
 import TourGuide from '@/components/TourGuide';
-import SubscriptionGate from '@/components/SubscriptionGate';
 import BottomNav from '@/components/BottomNav';
 import {
   LayoutDashboard,
@@ -20,6 +19,7 @@ import {
   Sparkles,
   Flame,
   Wallet,
+  Coins,
 } from 'lucide-react';
 
 type NavSection = {
@@ -42,6 +42,7 @@ const navSections: NavSection[] = [
       { label: 'Quick Add',    href: '/dashboard/quick',       icon: Zap },
       { label: 'Expenses',     href: '/dashboard/expenses',    icon: IndianRupee },
       { label: 'Income',       href: '/dashboard/income',      icon: TrendingUp },
+      { label: 'Receivables',  href: '/dashboard/receivables', icon: Coins },
       { label: 'Budgets',      href: '/dashboard/budgets',     icon: Wallet },
       { label: 'Investments',  href: '/dashboard/investments', icon: PiggyBank },
     ],
@@ -283,7 +284,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <BottomNav />
 
       <TourGuide />
-      <SubscriptionGate />
     </div>
   );
 }

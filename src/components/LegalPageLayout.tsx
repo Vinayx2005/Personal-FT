@@ -1,4 +1,4 @@
-// Shared shell for the /privacy, /terms, /refund pages so their spacing +
+// Shared shell for the /privacy, /terms pages so their spacing +
 // typography + header + footer stay in sync. Keeps the individual page
 // files focused on content.
 //
@@ -74,7 +74,6 @@ export default function LegalPageLayout({ title, updatedOn, children }: Props) {
           <div className="flex items-center gap-5 flex-wrap justify-center">
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="/refund" className="hover:text-white transition-colors">Refund</Link>
             <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
           </div>
         </div>

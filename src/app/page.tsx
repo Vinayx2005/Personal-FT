@@ -53,7 +53,7 @@ export default function LandingPage() {
           href="/signup"
           className="bg-white text-18-bg font-semibold text-sm px-5 py-2 rounded-full hover:bg-gray-100 transition-all flex items-center gap-1"
         >
-          Start free trial
+          Get started free
           <ArrowRight size={14} />
         </Link>
       </header>
@@ -106,7 +106,7 @@ export default function LandingPage() {
         <div className="relative z-10 max-w-5xl mx-auto px-4 md:px-8 pt-14 md:pt-20 pb-16 text-center">
           {/* Trust badges */}
           <div className="inline-flex flex-wrap items-center justify-center gap-2 mb-8 px-1">
-            {['7-day free trial', 'Lifetime access ₹499', 'No bank linking'].map((t) => (
+            {['Free forever', 'No card required', 'No bank linking'].map((t) => (
               <span
                 key={t}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-300 bg-18-surface/60 border border-18-border/60 rounded-full px-3 py-1 backdrop-blur-sm"
@@ -136,7 +136,7 @@ export default function LandingPage() {
               href="/signup"
               className="hero-cta-pulse bg-18-orange text-white font-semibold text-base px-8 py-4 rounded-full hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2"
             >
-              Start 7-day free trial
+              Get started free
               <ArrowRight size={16} />
             </Link>
             <Link
@@ -146,7 +146,7 @@ export default function LandingPage() {
               I already have an account
             </Link>
           </div>
-          <p className="text-xs text-gray-500 mt-8">7-day free trial · Then ₹499 for lifetime access · No card required to start</p>
+          <p className="text-xs text-gray-500 mt-8">Free forever · No card required · No bank linking</p>
         </div>
 
         {/* ---------- PRODUCT PREVIEW MOCK (visual anchor) ---------- */}
@@ -505,15 +505,15 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute inset-0 bg-glow-soft" aria-hidden />
         <div className="relative z-10 max-w-3xl mx-auto px-4 md:px-8">
           <div className="text-center mb-12">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-18-orange bg-18-orange/10 border border-18-orange/30 rounded-full px-3 py-1 mb-4">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1 mb-4">
               Simple pricing
             </span>
             <h2 className="text-4xl md:text-5xl font-black leading-tight text-white mb-4">
-              One payment.{' '}
-              <span className="text-18-orange italic">Lifetime access.</span>
+              Free.{' '}
+              <span className="text-18-orange italic">Forever.</span>
             </h2>
             <p className="text-gray-400 max-w-xl mx-auto">
-              Try free for 7 days. If you love it, pay once — never again.
+              No trial, no paywall, no subscription. Sign up and track your money.
             </p>
           </div>
 
@@ -525,24 +525,20 @@ export default function LandingPage() {
               aria-hidden
             />
             <div className="relative bg-18-surface border border-18-orange/40 rounded-[24px] p-6 md:p-10 shadow-2xl">
-              {/* Lifetime badge */}
+              {/* Free-forever badge */}
               <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-18-orange bg-18-orange/15 border border-18-orange/40 rounded-full px-3 py-1">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1">
                   <Sparkles size={12} />
-                  Lifetime access
-                </span>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1">
-                  Save 90%
+                  Free forever
                 </span>
               </div>
 
               {/* Price row */}
               <div className="flex items-baseline flex-wrap gap-3 mb-2">
-                <span className="text-5xl md:text-6xl font-semibold text-white tabular-nums tracking-tight">₹499</span>
-                <span className="text-2xl font-medium text-gray-500 line-through decoration-gray-600 tabular-nums">₹4,999</span>
+                <span className="text-5xl md:text-6xl font-semibold text-white tabular-nums tracking-tight">₹0</span>
               </div>
               <p className="text-sm text-gray-400 mb-8">
-                One-time payment · Never a subscription
+                No card, no subscription, no upsell
               </p>
 
               {/* Divider */}
@@ -551,7 +547,7 @@ export default function LandingPage() {
               {/* Feature checklist */}
               <ul className="space-y-3 mb-10">
                 {[
-                  '7-day free trial — full access, no card required',
+                  'Free forever — no hidden charges',
                   'Voice-based expense tracking',
                   'Income & expense tracking',
                   'Budget planner & category-wise analysis',
@@ -572,11 +568,11 @@ export default function LandingPage() {
                 href="/signup"
                 className="w-full flex items-center justify-center gap-2 bg-18-orange text-white font-bold text-base px-8 py-4 rounded-full hover:brightness-110 hover:-translate-y-0.5 transition-all shadow-[0_10px_40px_-5px_rgba(243,115,53,0.5)]"
               >
-                Start your 7-day free trial
+                Get started free
                 <ArrowRight size={16} />
               </Link>
               <p className="text-xs text-center text-gray-500 mt-4">
-                No credit card required to start. Cancel trial any time.
+                No credit card required. No paywall, ever.
               </p>
             </div>
           </div>
@@ -597,7 +593,7 @@ export default function LandingPage() {
             {[
               {
                 q: 'How much does Personal FT cost?',
-                a: '₹499, paid once — that unlocks lifetime access. Regular price is ₹4,999 (90% launch discount). Start with a 7-day free trial; no card required. If it is not for you, walk away with nothing charged.',
+                a: 'Nothing. Personal FT is free forever — no trial, no paywall, no subscription. Sign up with email and start tracking.',
               },
               {
                 q: 'Do I need any finance knowledge to use this?',
@@ -657,11 +653,11 @@ export default function LandingPage() {
             href="/signup"
             className="inline-flex items-center gap-2 bg-18-orange text-white font-bold text-base px-10 py-4 rounded-full hover:brightness-110 hover:-translate-y-0.5 transition-all shadow-[0_10px_50px_-5px_rgba(243,115,53,0.6)]"
           >
-            Start your 7-day free trial
+            Get started free
             <ArrowRight size={16} />
           </Link>
           <p className="text-xs text-gray-500 mt-5">
-            Then ₹499 for lifetime access. No card required to start.
+            Free forever. No card, no paywall.
           </p>
         </div>
       </section>
@@ -681,7 +677,6 @@ export default function LandingPage() {
             <span className="text-white/20 hidden md:inline">·</span>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="/refund" className="hover:text-white transition-colors">Refund</Link>
             <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
           </div>
         </div>

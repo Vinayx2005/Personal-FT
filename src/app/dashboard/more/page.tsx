@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { Wallet, Settings, ScrollText, ArrowRight, Landmark, Tags } from 'lucide-react';
+import { Wallet, Settings, ScrollText, ArrowRight, Landmark, Tags, Coins } from 'lucide-react';
 
 interface Tile {
   href: string;
@@ -31,6 +31,13 @@ const TILES: Tile[] = [
     sub: 'Set monthly caps by category',
     icon: Wallet,
     accent: 'from-emerald-500 to-green-600',
+  },
+  {
+    href: '/dashboard/receivables',
+    title: 'Receivables',
+    sub: 'Money others owe you',
+    icon: Coins,
+    accent: 'from-teal-500 to-emerald-600',
   },
   {
     href: '/dashboard/banks',

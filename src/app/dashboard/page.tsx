@@ -113,6 +113,9 @@ export default function DashboardPage() {
   // which naturally rolls forward as the date changes (yesterday's closing
   // becomes today's opening the instant the client's clock ticks past 00:00).
   const [bankNetBeforeToday, setBankNetBeforeToday] = useState<Record<number, number>>({});
+  // Sum of pending receivables (money owed TO the user). Added to the
+  // Current Balance so the "money in flight" is visible alongside bank cash.
+  const [pendingReceivables, setPendingReceivables] = useState(0);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DateRange>(defaultRange());
   // Bumped whenever we want to force a refetch (route entry, tab focus,
@@ -172,6 +175,17 @@ export default function DashboardPage() {
         setBankNet(netByBank);
         setBankNetBeforeToday(netBeforeTodayByBank);
 
+        // Pending receivables — money owed to the user that hasn't come
+        // back yet. Feeds Current Balance below. Table missing (migration
+        // not run) is treated as zero.
+        const { data: pendingData } = await supabase
+          .from('receivables')
+          .select('amount')
+          .is('received_date', null);
+        setPendingReceivables(
+          (pendingData || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0)
+        );
+
         let totalIncome = 0;
         let totalExpenses = 0;
 
@@ -221,7 +235,8 @@ export default function DashboardPage() {
   // Live current balance across ALL banks = sum(opening) + sum(all-time net).
   // Independent of the date range picker.
   const allTimeNet = Object.values(bankNet).reduce((s, v) => s + v, 0);
-  const currentBalance = data.totalCash + allTimeNet;
+  // Current Balance = bank cash + pending receivables ("money in flight").
+  const currentBalance = data.totalCash + allTimeNet + pendingReceivables;
   const isBrandNew = data.banks.length === 0 && data.totalIncome === 0 && data.totalExpenses === 0;
   const savingsRate = data.totalIncome > 0 ? Math.round((profit / data.totalIncome) * 100) : 0;
 
@@ -271,7 +286,11 @@ export default function DashboardPage() {
         <KpiCard
           label="Current Balance"
           value={formatCurrency(currentBalance)}
-          sub={`Opening: ${formatCurrency(data.totalCash)}`}
+          sub={
+            pendingReceivables > 0
+              ? `incl. ${formatCurrency(pendingReceivables)} receivable`
+              : `Opening: ${formatCurrency(data.totalCash)}`
+          }
           icon={Wallet}
           glow
         />

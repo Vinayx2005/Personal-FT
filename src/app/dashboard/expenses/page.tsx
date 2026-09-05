@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Transaction, Category, Bank } from '@/types';
+import { Transaction, Category, Bank, SipFrequency, SIP_FREQUENCY_LABELS } from '@/types';
 import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
 import { Plus, Edit2, Trash2, X, Upload, Download, Paperclip, FileText, Check } from 'lucide-react';
 import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
@@ -28,6 +28,7 @@ interface ExpenseForm {
 
 export default function ExpensesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -41,6 +42,23 @@ export default function ExpensesPage() {
   const [bankFilter, setBankFilter] = useState<Set<number>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [viewing, setViewing] = useState<{ expense: Transaction } | null>(null);
+  // "Recurring" toggle inside the New Expense modal. When on, submit writes
+  // to the `sips` table (with investment_id: null) so the cron auto-inserts
+  // a transactions row on each debit day. Off by default; disabled while
+  // editing an existing expense. Frequency + debit-day fields appear below
+  // the toggle when it's on.
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recFreq, setRecFreq] = useState<SipFrequency>('monthly');
+  const [recDay, setRecDay] = useState(1);
+  const [recEndDate, setRecEndDate] = useState('');
+
+  // Deep-link: /dashboard/expenses?add=1 auto-opens the New Expense modal.
+  // Entries page's mobile FAB uses this so the user gets the toggle form
+  // in one tap instead of two.
+  useEffect(() => {
+    if (searchParams?.get('add') === '1') setShowForm(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   // Mobile is in "select mode" any time at least one row is selected. A
   // long-press on any row enters this mode by selecting that row; tapping
   // further rows toggles their selection instead of opening the detail.
@@ -121,6 +139,39 @@ export default function ExpensesPage() {
 
   useScrollToHash([expenses.length]);
 
+  // Given today + frequency + debit_day, return the FIRST future debit ISO
+  // date so the cron picks up the new sip on its next scheduled cycle.
+  // Same logic as the cron's roll-forward.
+  const computeFirstDebit = (startIso: string, freq: SipFrequency, day: number): string => {
+    const start = new Date(startIso + 'T00:00:00');
+    const iso = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${dd}`;
+    };
+    if (freq === 'weekly') {
+      const target = day === 7 ? 0 : day;
+      const d = new Date(start);
+      let delta = target - d.getDay();
+      if (delta < 0) delta += 7;
+      d.setDate(d.getDate() + delta);
+      return iso(d);
+    }
+    const step = freq === 'monthly' ? 1 : 3;
+    const t = new Date(start);
+    t.setDate(1);
+    let dim = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    t.setDate(Math.min(day, dim));
+    if (t < start) {
+      t.setDate(1);
+      t.setMonth(t.getMonth() + step);
+      dim = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+      t.setDate(Math.min(day, dim));
+    }
+    return iso(t);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return; // Guard against double-taps creating duplicate rows
@@ -134,6 +185,43 @@ export default function ExpensesPage() {
 
     setSubmitting(true);
     try {
+      // ----- Recurring branch: write to sips, not transactions. The cron
+      // at /api/cron/sip-debit inserts one transactions row per debit day.
+      if (isRecurring && !editingId) {
+        const name = (form.description || '').trim() || 'Recurring expense';
+        const nextDebit = computeFirstDebit(form.transaction_date, recFreq, recDay);
+        const sipPayload = {
+          user_id: currentUserId,
+          name,
+          amount: form.amount,
+          frequency: recFreq,
+          debit_day: recDay,
+          source_bank_id: form.bank_id,
+          category_id: form.category_id || null,
+          investment_id: null,
+          start_date: form.transaction_date,
+          end_date: recEndDate || null,
+          next_debit_date: nextDebit,
+          notes: form.notes || null,
+        };
+        const { data, error } = await supabase.from('sips').insert(sipPayload).select().single();
+        if (error) throw error;
+        logAction({
+          action: 'create',
+          table_name: 'sips',
+          record_id: (data as any).id,
+          description: `Set up recurring: ${name} — ${formatCurrency(form.amount)} ${SIP_FREQUENCY_LABELS[recFreq]}`,
+          new_values: sipPayload as any,
+        });
+        alert(`Recurring expense saved. First debit on ${formatDate(nextDebit)}.`);
+        resetForm();
+        setIsRecurring(false);
+        setRecEndDate('');
+        setShowForm(false);
+        setSubmitting(false);
+        return;
+      }
+
       if (editingId) {
         const prev = expenses.find((e) => e.id === editingId);
         const { error } = await supabase
@@ -454,6 +542,12 @@ export default function ExpensesPage() {
       receipt_url: null,
     });
     setEditingId(null);
+    // Also reset the recurring toggle so the next fresh Add opens as
+    // one-time, not sticky on whatever the user picked last time.
+    setIsRecurring(false);
+    setRecFreq('monthly');
+    setRecDay(1);
+    setRecEndDate('');
   };
 
   if (loading) {
@@ -526,7 +620,9 @@ export default function ExpensesPage() {
             className="hidden"
             onChange={handleCSVImport}
           />
-          {/* Desktop-only top button. Mobile users tap the FAB at bottom-right. */}
+          {/* Desktop-only top button. Mobile users tap the FAB at bottom-right.
+              Recurring is a toggle inside the New Expense modal, not a
+              separate button — see the top of the form. */}
           <button
             onClick={() => {
               resetForm();
@@ -633,7 +729,7 @@ export default function ExpensesPage() {
           {/* Sticky header */}
           <div className="flex justify-between items-center px-5 py-4 border-b border-18-border/60 shrink-0">
             <h2 className="text-lg sm:text-2xl font-bold text-white">
-              {editingId ? 'Edit Expense' : 'New Expense'}
+              {editingId ? 'Edit Expense' : isRecurring ? 'New Recurring Expense' : 'New Expense'}
             </h2>
             <button
               onClick={() => {
@@ -649,6 +745,33 @@ export default function ExpensesPage() {
 
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+            {/* One-time / Recurring toggle. Hidden while editing an existing
+                expense — you can't convert a posted transaction into a
+                recurring template, and vice versa; delete + re-add if you
+                really need to. */}
+            {!editingId && (
+              <div className="flex items-center gap-1 bg-18-bg/60 border border-18-border rounded-full p-1 w-full sm:w-fit">
+                {(
+                  [
+                    { key: false, label: 'One-time' },
+                    { key: true,  label: 'Recurring' },
+                  ] as { key: boolean; label: string }[]
+                ).map((t) => (
+                  <button
+                    key={t.label}
+                    type="button"
+                    onClick={() => setIsRecurring(t.key)}
+                    className={`flex-1 sm:flex-none text-center px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      isRecurring === t.key
+                        ? 'bg-18-orange text-white'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
               <div className="form-group">
                 <label className="form-label">Amount *</label>
@@ -691,7 +814,7 @@ export default function ExpensesPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Date *</label>
+                <label className="form-label">{isRecurring ? 'Start date *' : 'Date *'}</label>
                 <input
                   type="date"
                   className="form-input"
@@ -701,8 +824,59 @@ export default function ExpensesPage() {
                 />
               </div>
 
+              {/* Recurring-only fields. Rendered inside the same grid so they
+                  flow beside the existing fields on desktop. */}
+              {isRecurring && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Frequency *</label>
+                    <select
+                      className="form-select"
+                      value={recFreq}
+                      onChange={(e) => setRecFreq(e.target.value as SipFrequency)}
+                    >
+                      {(['monthly', 'weekly', 'quarterly'] as SipFrequency[]).map((f) => (
+                        <option key={f} value={f}>{SIP_FREQUENCY_LABELS[f]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">
+                      {recFreq === 'weekly' ? 'Day of week (1 = Mon, 7 = Sun) *' : 'Day of month (1–31) *'}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={recFreq === 'weekly' ? 7 : 31}
+                      className="form-input"
+                      value={recDay}
+                      onChange={(e) =>
+                        setRecDay(
+                          Math.max(1, Math.min(recFreq === 'weekly' ? 7 : 31, parseInt(e.target.value) || 1))
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="form-group md:col-span-2">
+                    <label className="form-label">End date (optional)</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={recEndDate}
+                      onChange={(e) => setRecEndDate(e.target.value)}
+                    />
+                    <p className="text-[11px] text-white/50 mt-1">
+                      First debit on{' '}
+                      <span className="font-semibold text-white">
+                        {formatDate(computeFirstDebit(form.transaction_date, recFreq, recDay))}
+                      </span>.
+                    </p>
+                  </div>
+                </>
+              )}
+
               <div className="form-group md:col-span-2">
-                <label className="form-label">Description</label>
+                <label className="form-label">{isRecurring ? 'Name / description' : 'Description'}</label>
                 <input
                   type="text"
                   className="form-input"
@@ -792,7 +966,13 @@ export default function ExpensesPage() {
               disabled={submitting}
               className="sm:flex-1 py-3 rounded-full bg-18-orange text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all shadow-[0_8px_20px_-6px_rgba(243,115,53,0.6)]"
             >
-              {submitting ? 'Saving…' : editingId ? 'Update Expense' : 'Add Expense'}
+              {submitting
+                ? 'Saving…'
+                : editingId
+                ? 'Update Expense'
+                : isRecurring
+                ? 'Save Recurring'
+                : 'Add Expense'}
             </button>
           </div>
           </form>

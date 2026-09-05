@@ -19,6 +19,7 @@
 //     filter — it's a period scoreboard, not a mirror of the list.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import {
   Transaction,
@@ -34,6 +35,7 @@ import {
   X,
   Trash2,
   Check,
+  Plus,
 } from 'lucide-react';
 import PeriodPicker from '@/components/PeriodPicker';
 import { DateRange, defaultRange } from '@/lib/dateRanges';
@@ -381,10 +383,12 @@ export default function EntriesPage() {
         )}
       </div>
 
-      {/* Date range with prev / next chevrons + count */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Date range with prev / next chevrons + count. Picker centers on
+          its own row; the entry count sits below-centered so both align
+          with the page's other centered elements (totals strip). */}
+      <div className="flex flex-col items-center gap-1">
         <PeriodPicker value={range} onChange={setRange} />
-        <span className="text-xs text-white/50 ml-auto">
+        <span className="text-xs text-white/50">
           {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
         </span>
       </div>
@@ -522,9 +526,7 @@ export default function EntriesPage() {
       )}
 
       {/* Selection toolbar — floats above the bottom nav; delete or clear.
-          z-50 (not z-40) so it always sits above the SubscriptionGate
-          trial banner, which lives at bottom-24 z-40 and would otherwise
-          overlap this toolbar for users still inside their trial window. */}
+          z-50 so it sits above any floating overlays. */}
       {selectionMode && (
         <div
           className="fixed bottom-24 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto sm:max-w-md z-50"
@@ -636,6 +638,18 @@ export default function EntriesPage() {
           </div>
         </div>
       )}
+
+      {/* Mobile FAB — Entries is read-only, so we route through the
+          Expenses page's Add modal (which has the one-time/recurring
+          toggle). ?add=1 tells Expenses to auto-open the modal so this
+          is one tap, not two. */}
+      <Link
+        href="/dashboard/expenses?add=1"
+        className="md:hidden fixed bottom-24 right-6 z-30 h-14 w-14 rounded-full bg-18-orange text-white flex items-center justify-center shadow-[0_10px_40px_-5px_rgba(243,115,53,0.6)] hover:brightness-110 active:scale-95 transition-all"
+        aria-label="Add expense"
+      >
+        <Plus size={26} />
+      </Link>
     </div>
   );
 }

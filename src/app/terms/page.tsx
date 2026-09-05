@@ -32,33 +32,17 @@ export default function TermsPage() {
         <li>You must be at least 18 years old to use Personal FT</li>
         <li>You must provide a valid email address and use accurate information</li>
         <li>You&apos;re responsible for keeping your password secure — please don&apos;t share it</li>
-        <li>One human, one account. Please don&apos;t create multiple accounts to abuse the free trial</li>
+        <li>One human, one account. Please don&apos;t create multiple accounts</li>
       </ul>
 
-      <h2>3. Free trial &amp; payment</h2>
+      <h2>3. Pricing</h2>
       <p>
-        New accounts get a <strong>7-day free trial</strong> with full access
-        to every feature. No card is required to start the trial. On day 8, if
-        you haven&apos;t paid, the app switches to a paywall that asks you to
-        purchase lifetime access.
-      </p>
-      <p>
-        <strong>Lifetime access costs ₹499</strong> (all applicable taxes
-        included), paid once via Razorpay. Once paid, you have access to the
-        app for as long as we continue to operate it. There are no recurring
-        charges and no subscription fees.
+        Personal FT is <strong>free to use</strong>. There is no trial period,
+        no paywall, no subscription, and no charge to unlock any feature.
+        We do not collect payment details.
       </p>
 
-      <h2>4. Refunds</h2>
-      <p>
-        All purchases are final. The 7-day free trial is your evaluation
-        window &mdash; please use it fully before paying. We only refund in
-        specific situations (duplicate charge, extended outage on our side,
-        or a full service shutdown within your first year). Full details are
-        in our <a href="/refund">Refund Policy</a>.
-      </p>
-
-      <h2>5. Acceptable use</h2>
+      <h2>4. Acceptable use</h2>
       <p>You agree not to:</p>
       <ul>
         <li>Attempt to bypass authentication or access other users&apos; data</li>
@@ -72,7 +56,7 @@ export default function TermsPage() {
         without notice and without refund.
       </p>
 
-      <h2>6. Your data</h2>
+      <h2>5. Your data</h2>
       <p>
         You own your financial data. We store it to make the app work for you.
         See our <a href="/privacy">Privacy Policy</a> for the full details. You
@@ -80,7 +64,7 @@ export default function TermsPage() {
         every row we hold about you.
       </p>
 
-      <h2>7. Voice notes and AI</h2>
+      <h2>6. Voice notes and AI</h2>
       <p>
         When you send a voice note through Quick Chat, the audio is processed
         by Google Gemini to transcribe and extract the expense details.
@@ -90,22 +74,22 @@ export default function TermsPage() {
         Confirm &amp; Save.
       </p>
 
-      <h2>8. Availability &amp; no SLA</h2>
+      <h2>7. Availability &amp; no SLA</h2>
       <p>
         We&apos;ll do our best to keep the app up and running, but we
         don&apos;t promise 100% uptime. Occasional maintenance, provider
-        outages (Supabase, Vercel, Razorpay, etc.) or bugs are part of
+        outages (Supabase, Vercel, etc.) or bugs are part of
         running a small independent product. We don&apos;t offer a formal
         service-level agreement.
       </p>
 
-      <h2>9. Limitation of liability</h2>
+      <h2>8. Limitation of liability</h2>
       <p>
         Personal FT is a record-keeping tool, not financial advice. We provide
         the app <strong>&ldquo;as is&rdquo;</strong> without warranties of any
         kind. To the maximum extent permitted by law, our liability for any
-        claim relating to your use of the app is limited to the amount you
-        paid us in the twelve months before the claim (i.e. at most ₹499).
+        claim relating to your use of the app is limited to zero — the app
+        is provided free of charge.
       </p>
       <p>
         We&apos;re not responsible for financial decisions you make based on
@@ -113,31 +97,29 @@ export default function TermsPage() {
         providers, or for indirect / consequential damages.
       </p>
 
-      <h2>10. Changes to these terms</h2>
+      <h2>9. Changes to these terms</h2>
       <p>
-        If we change these terms materially, we&apos;ll update this page and
-        (if you&apos;re a paid customer) email you. The &ldquo;Last
-        updated&rdquo; date at the top of this page always reflects the
+        If we change these terms materially, we&apos;ll update this page.
+        The &ldquo;Last updated&rdquo; date at the top always reflects the
         current version. Continued use of the app after a change means
         you accept the new terms.
       </p>
 
-      <h2>11. Termination</h2>
+      <h2>10. Termination</h2>
       <p>
         You can stop using Personal FT and delete your account any time. We
         may terminate accounts that violate these terms, or shut down the
-        service entirely with reasonable notice. If we shut down within your
-        first year of lifetime access, we&apos;ll refund your ₹499 in full.
+        service entirely with reasonable notice.
       </p>
 
-      <h2>12. Governing law</h2>
+      <h2>11. Governing law</h2>
       <p>
         These terms are governed by the laws of India. Any disputes are
         subject to the exclusive jurisdiction of the courts in Hyderabad,
         Telangana.
       </p>
 
-      <h2>13. Contact</h2>
+      <h2>12. Contact</h2>
       <p>
         For questions about these terms, email{' '}
         <a href="mailto:vinayteja23@gmail.com">vinayteja23@gmail.com</a>.

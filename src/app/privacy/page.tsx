@@ -61,11 +61,8 @@ export default function PrivacyPage() {
 
       <h3>Payment information</h3>
       <p>
-        Payments for lifetime access are processed by <strong>Razorpay</strong>.
-        We do not see or store your card, UPI, or bank details — Razorpay
-        handles the entire payment flow. What we store is the payment id
-        Razorpay returns after a successful charge, along with the amount and
-        date, so we can confirm your lifetime access.
+        Personal FT is free. We do not collect, process, or store any
+        payment information.
       </p>
 
       <h3>Cookies &amp; local storage</h3>
@@ -81,9 +78,8 @@ export default function PrivacyPage() {
       <ul>
         <li><strong>Supabase</strong> — hosts our database and handles authentication</li>
         <li><strong>Vercel</strong> — hosts the app and runs our serverless functions</li>
-        <li><strong>Razorpay</strong> — processes lifetime-access payments</li>
         <li><strong>Google Gemini</strong> — transcribes voice notes and parses natural-language expense entries</li>
-        <li><strong>Resend</strong> — sends transactional emails (welcome, trial reminders, payment confirmation)</li>
+        <li><strong>Resend</strong> — sends the welcome email when you sign up</li>
         <li><strong>Google OAuth</strong> — used when you sign in with Google</li>
       </ul>
       <p>
@@ -95,7 +91,7 @@ export default function PrivacyPage() {
       <ul>
         <li>To let you sign in and use the app</li>
         <li>To show you your own transactions, balances, and reports</li>
-        <li>To send you transactional emails you asked for (trial reminders, payment confirmations)</li>
+        <li>To send you the welcome email at signup</li>
         <li>To debug problems if you report an issue</li>
       </ul>
       <p>
