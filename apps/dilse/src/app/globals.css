@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dilse — light theme, literary serif. Distinct from the rest of the
+   craftedbyteja family (dark + Poppins). Matches the original repo's
+   monochrome aesthetic. */
+html, body { background: #fff; color: #0d0d0d; }
+body {
+  font-family: 'Merriweather', Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-serif { font-family: 'Merriweather', Georgia, serif; }
+.font-sans  { font-family: 'Merriweather', Georgia, serif; } /* whole app is serif on purpose */
+
+/* Story body — big literary reading experience */
+.dilse-prose { font-size: 16px; line-height: 1.85; color: #1a1a1a; }
+.dilse-prose p { margin: 0 0 1.5rem; text-align: justify; }
+.dilse-prose h2 { font-size: 1.5rem; font-weight: 700; margin: 2rem 0 1rem; }
+.dilse-prose a { color: #0d0d0d; text-decoration: underline; text-underline-offset: 3px; }
+.dilse-prose blockquote { border-left: 3px solid #0d0d0d; padding-left: 1rem; margin: 1.5rem 0; font-style: italic; color: #555; }
+.dilse-prose em { font-style: italic; }
+.dilse-prose strong { font-weight: 700; }
+
+/* Drop cap on the first paragraph of a story */
+.dilse-prose > p:first-of-type::first-letter {
+  font-size: 4.5rem;
+  font-weight: 700;
+  float: left;
+  line-height: 0.9;
+  margin: 0.25rem 0.5rem 0 0;
+  font-family: 'Merriweather', serif;
+}

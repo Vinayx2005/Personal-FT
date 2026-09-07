@@ -1,41 +1,20 @@
 {
-  "name": "teja-finance-tracker",
+  "name": "craftedbyteja",
   "version": "1.0.0",
-  "description": "Personal finance tracker",
   "private": true,
+  "description": "Monorepo — craftedbyteja.com (root site, dilse, tools, PFT, CMS).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "next": "^14.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@supabase/supabase-js": "^2.38.0",
-    "@supabase/auth-helpers-nextjs": "^0.7.0",
-    "typescript": "^5.3.0",
-    "recharts": "^2.10.0",
-    "axios": "^1.6.0",
-    "date-fns": "^2.30.0",
-    "jspdf": "^2.5.1",
-    "html2canvas": "^1.4.1",
-    "exceljs": "^4.3.0",
-    "file-saver": "^2.0.5",
-    "zustand": "^4.4.0",
-    "lucide-react": "^0.294.0",
-    "clsx": "^2.0.0",
-    "tailwindcss": "^3.3.0",
-    "postcss": "^8.4.0",
-    "autoprefixer": "^10.4.0"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@types/file-saver": "^2.0.5",
-    "eslint": "^8.50.0",
-    "eslint-config-next": "^14.0.0"
+    "dev":       "npm run dev --workspace apps/pft",
+    "dev:pft":   "npm run dev --workspace apps/pft",
+    "dev:root":  "npm run dev --workspace apps/root",
+    "dev:tools": "npm run dev --workspace apps/tools",
+    "dev:dilse": "npm run dev --workspace apps/dilse",
+    "dev:cms":   "npm run dev --workspace apps/cms",
+    "build:pft": "npm run build --workspace apps/pft",
+    "lint:pft":  "npm run lint --workspace apps/pft"
   }
 }

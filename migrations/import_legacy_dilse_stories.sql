@@ -1,0 +1,54 @@
+-- Import stories from the legacy Dilse Supabase project into dilse.stories.
+--
+-- Legacy project (source):  ewutkqxirxhidomeztdo.supabase.co
+-- Legacy table:              public.stories
+-- Legacy columns:            id (text/uuid), title, excerpt, story,
+--                            date (text, e.g. "2/14/2025"), read_time,
+--                            genre
+--
+-- Target project (this DB):  dilse.stories
+-- Author email:              vinayteja23@gmail.com
+--
+-- Two ways to run this. Pick ONE.
+--
+-- ============================================================
+-- OPTION A — Manual paste (no external network needed)
+-- ============================================================
+-- 1) In the LEGACY Supabase SQL editor, generate INSERT statements:
+--
+--      select
+--        format(
+--          $$insert into dilse.stories
+--            (slug, title, excerpt, body_md, read_time, genre,
+--             date_display, published_at, author_email)
+--           values (%L, %L, %L, %L, %L, %L, %L, now(), %L)
+--           on conflict (slug) do nothing;$$,
+--          id, title, excerpt, story, read_time, genre, date,
+--          'vinayteja23@gmail.com'
+--        )
+--      from public.stories
+--      order by date desc;
+--
+-- 2) Copy the generated INSERT statements.
+-- 3) Paste and run them in THIS project's SQL editor.
+--
+-- ============================================================
+-- OPTION B — dblink (one-shot from this DB, if enabled)
+-- ============================================================
+-- create extension if not exists dblink;
+--
+-- insert into dilse.stories
+--   (slug, title, excerpt, body_md, read_time, genre,
+--    date_display, published_at, author_email)
+-- select
+--   s.id, s.title, s.excerpt, s.story,
+--   s.read_time, s.genre, s.date, now(),
+--   'vinayteja23@gmail.com'
+-- from dblink(
+--   'LEGACY_CONN',  -- e.g. 'host=db.ewutkqxirxhidomeztdo.supabase.co user=... password=... dbname=postgres'
+--   'select id, title, excerpt, story, date, read_time, genre from public.stories'
+-- ) as s(
+--   id text, title text, excerpt text, story text,
+--   date text, read_time text, genre text
+-- )
+-- on conflict (slug) do nothing;

@@ -1,0 +1,16 @@
+// Author bio — long-form, changes rarely. Left in code on purpose so it
+// doesn't need CMS wiring for a once-every-few-years edit. Stories and
+// books live in Supabase now (dilse.stories, dilse.books) and are edited
+// via cms.craftedbyteja.com. The one-time seed of already-published
+// content lives at migrations/seed_dilse_content.sql.
+
+export const authorBio = [
+  "Teja is a storyteller at heart — someone who doesn't just write stories, but listens to human emotions before putting them into words. Writing in both Telugu and English, his stories are deeply rooted in love, human emotions, suspense, and thrill, with characters that are sincere, intense, and painfully real. His writing quietly builds emotional depth that stays with the reader long after the last line.",
+  "For Teja, story telling began as a natural extension of his mind — a place where thoughts constantly wander, emotions strike every corner of the brain, and memories refuse to stay silent. What started as interest soon became a necessity. Human emotions fascinated him so deeply that he began translating them into stories as a form of meditation. Writing, for him, is a calm yet intense process — a space where overthinking turns into clarity and feelings find direction.",
+  "His writing journey began on 24th September 2022, with a story that was extremely personal to him — a love story of a beautiful couple that reflected sincerity, vulnerability, and emotional truth. That first piece opened the doors to his imagination. From there, he went on to explore multiple emotional layers through short stories, gradually finding his own voice — simple, conversational, and deeply relatable.",
+  "On 19th December 2025, Teja published his first-ever Telugu book, Aksharaala Nuvve — His writings are heavily inspired by his own experiences, memories, and personal beliefs, making every story honest and emotionally grounded.",
+  "What truly defines Teja's work is his intention as a writer. He wants readers to see themselves in his words — to smile, to cry, to remember forgotten memories, and sometimes to sit silently with emotions they never knew how to express. His stories are written for people who are searching for new ways to understand and articulate their feelings through reading.",
+  "As a person, Teja is deeply emotional, a keen observer of people and their unspoken emotions. He believes his habit of overthinking is not a weakness but a strength — one that helps him create compelling narratives filled with emotional intensity. His writing style remains intentionally simple and conversational, allowing readers to connect effortlessly with the story rather than struggle with heavy language.",
+  "Looking ahead, Teja dreams beyond the page. He envisions taking his stories and imagination to the silver screen, transforming written emotions into visual experiences that can impact lakhs of people. His goal is to create a lasting emotional bond with his readers — one where stories feel less like content and more like shared experiences.",
+  "In his own words, Teja is \"a hustler with an emotional heart and an overthinking brain\" — a combination that fuels stories which are sincere, intense, and profoundly human.",
+];
