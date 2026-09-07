@@ -57,6 +57,7 @@ const TABS: Tab[] = [
       '/dashboard/banks',
       '/dashboard/categories',
       '/dashboard/receivables',
+      '/dashboard/loans',
       '/dashboard/settings',
       '/dashboard/logs',
     ],

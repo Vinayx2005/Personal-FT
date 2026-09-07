@@ -131,6 +131,19 @@ function fmtDuration(ms: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+// Reject a promise after `ms` if it hasn't settled. Used to cap the mic
+// stop() and the audio parse call so the voice-note UI can't get stuck
+// in "processing" forever when a network / MediaRecorder callback dies.
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`Timed out (${label}). Please try again.`)), ms);
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+}
+
 function fmtDatePretty(iso: string): string {
   const today = formatDateISO(new Date());
   const y = new Date(); y.setDate(y.getDate() - 1);
@@ -161,6 +174,11 @@ export default function QuickChatPage() {
   // Gemini; 'unsupported' = MediaRecorder / getUserMedia not available.
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'processing' | 'unsupported'>('idle');
   const recorderRef = useRef<VoiceRecorder | null>(null);
+  // Re-entry guard for the async start/stop window. handleMic branches on
+  // React state, which is stale across a double-tap — this ref stops a
+  // second tap from spawning a parallel getUserMedia while the first
+  // is still awaiting the mic-permission dialog.
+  const micBusyRef = useRef(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -339,29 +357,42 @@ export default function QuickChatPage() {
   // ---------- Voice ----------
 
   const handleMic = async () => {
-    // Tap while recording → stop, upload, hand off to Gemini for audio
-    // transcription + expense extraction in one call.
-    if (voiceState === 'listening' && recorderRef.current) {
-      // Take ownership of the recorder ref + flip state to 'processing'
-      // BEFORE awaiting stop, so a second rapid tap during the async stop
-      // sees state !== 'listening' + ref === null and short-circuits.
-      // Otherwise both taps would race for the same stop(), overwriting the
-      // MediaRecorder's onstop handler and hanging the first promise forever.
+    // Reject re-entry during any async window. A second tap during
+    // rec.start() (mic-permission dialog) or rec.stop() would otherwise
+    // race, spawning a parallel getUserMedia and orphaning the first
+    // recorder with the mic still live.
+    if (micBusyRef.current) return;
+
+    // Prefer the recorder REF over React state as the source of truth for
+    // "is recording". React state is captured stale across a double-tap;
+    // the ref is authoritative in the same tick.
+    if (recorderRef.current) {
+      // ---- Stop path ----
+      micBusyRef.current = true;
       const rec = recorderRef.current;
       recorderRef.current = null;
       setVoiceState('processing');
 
+      // 15-second hard cap on stop(). Backgrounded tabs on iOS Safari can
+      // fail to fire MediaRecorder.onstop, which would leave voiceState
+      // stuck on 'processing' forever with the button disabled.
       let stopped: { blob: Blob; durationMs: number };
       try {
-        stopped = await rec.stop();
+        stopped = await withTimeout(rec.stop(), 15_000, 'recording-stop');
       } catch (err: any) {
+        rec.cancel(); // release the mic
         setVoiceState('idle');
+        micBusyRef.current = false;
         pushBotError(`Recording error: ${err?.message || 'unknown'}`);
         return;
       }
+
       if (stopped.durationMs < 400) {
-        // Tap-to-cancel: too short to be a real voice note.
+        // Was silent before — user saw nothing. Tell them so they know
+        // to hold longer next time.
         setVoiceState('idle');
+        micBusyRef.current = false;
+        pushBotError('Recording was too short. Tap the mic and hold for a moment before tapping again.');
         return;
       }
 
@@ -377,11 +408,15 @@ export default function QuickChatPage() {
 
       const thinkingId = rid();
       push({ id: thinkingId, role: 'bot', kind: 'text', text: 'Listening & parsing…', ts: now() });
-      // voiceState was already flipped to 'processing' at the top of this
-      // branch (before await stop) — no re-set needed here.
 
       try {
-        const parsed = await parseAudioExpense(stopped.blob, bankNames, categoryNames);
+        // 45-second cap on the parse — Gemini call + upload. Hangs beyond
+        // that are almost certainly a dead network / stalled fetch.
+        const parsed = await withTimeout(
+          parseAudioExpense(stopped.blob, bankNames, categoryNames),
+          45_000,
+          'parse-audio'
+        );
         setMessages((prev) => {
           const next = prev.filter((m) => m.id !== thinkingId);
           const draft: Draft = {
@@ -405,35 +440,44 @@ export default function QuickChatPage() {
         });
       } catch (err: any) {
         setMessages((prev) => prev.filter((m) => m.id !== thinkingId));
-        // parseAudioExpense already funnels API failures through the shared
-        // UNEXPECTED_AI_ERROR string; the || fallback catches any other
-        // throw path so the user never sees a stack trace.
         pushBotError(err?.message || UNEXPECTED_AI_ERROR);
       } finally {
         setVoiceState('idle');
+        micBusyRef.current = false;
       }
       return;
     }
 
-    // Tap when idle → start recording.
+    // ---- Start path ----
     const rec = new VoiceRecorder();
     if (!rec.isSupported()) {
       setVoiceState('unsupported');
       pushBotError("Voice notes aren't supported in this browser. Try Chrome, Edge, or Safari 14.5+.");
       return;
     }
+    micBusyRef.current = true;
     try {
       await rec.start();
       recorderRef.current = rec;
       setVoiceState('listening');
     } catch (err: any) {
+      // On any failure make sure the recorder isn't holding a mic stream.
+      try { rec.cancel(); } catch { /* ignore */ }
       const msg = err?.name === 'NotAllowedError'
         ? 'Mic permission blocked. Allow microphone access for this site and try again.'
         : `Couldn't start recording: ${err?.message || err}`;
       pushBotError(msg);
       setVoiceState('idle');
+    } finally {
+      micBusyRef.current = false;
     }
   };
+
+  // Cleanup: if the user navigates away or hot-reloads while recording,
+  // release the microphone. Without this the mic light stays on.
+  useEffect(() => {
+    return () => { recorderRef.current?.cancel(); recorderRef.current = null; };
+  }, []);
 
   // ---------- Preview actions ----------
 

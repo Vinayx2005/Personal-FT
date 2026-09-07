@@ -244,6 +244,13 @@ export default function CategoriesManager() {
                                 default
                               </span>
                             )}
+                            {/* EMI is special-cased: expenses under it can
+                                link to a loan in the New Expense modal. */}
+                            {c.name.trim().toLowerCase() === 'emi' && (
+                              <span className="ml-2 text-[10px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 rounded-full px-1.5 py-0.5 uppercase tracking-wide">
+                                → loans
+                              </span>
+                            )}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
                             <button

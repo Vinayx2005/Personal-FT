@@ -43,6 +43,13 @@ export default function ReceivablesPage() {
   // instead of INSERTs. Populated by startEdit; cleared by cancel + on
   // successful save.
   const [editingId, setEditingId] = useState<number | null>(null);
+  // "Mark received" now opens a small modal so users can record a partial
+  // payment. `payingRow` is the row being paid; `payAmount` is the input
+  // (pre-filled with the outstanding amount). Fully paid stamps
+  // received_date; Partially paid reduces the outstanding amount and
+  // leaves the row pending.
+  const [payingRow, setPayingRow] = useState<Receivable | null>(null);
+  const [payAmountInput, setPayAmountInput] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -142,8 +149,18 @@ export default function ReceivablesPage() {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const markReceived = async (r: Receivable) => {
-    if (!confirm(`Mark ${formatCurrency(r.amount)} from ${r.from_name} as received?`)) return;
+  const openPayModal = (r: Receivable) => {
+    setPayingRow(r);
+    setPayAmountInput(String(r.amount));
+  };
+  const closePayModal = () => {
+    setPayingRow(null);
+    setPayAmountInput('');
+  };
+
+  const markFullyPaid = async () => {
+    if (!payingRow) return;
+    const r = payingRow;
     try {
       const today = formatDateISO(new Date());
       const { data, error } = await supabase
@@ -158,9 +175,44 @@ export default function ReceivablesPage() {
         action: 'update',
         table_name: 'receivables',
         record_id: r.id,
-        description: `Marked receivable received: ${r.from_name} — ${formatCurrency(r.amount)}`,
+        description: `Received in full from ${r.from_name}: ${formatCurrency(r.amount)}`,
         new_values: { received_date: today },
       });
+      closePayModal();
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const markPartiallyPaid = async () => {
+    if (!payingRow) return;
+    const r = payingRow;
+    const paid = parseFloat(payAmountInput) || 0;
+    if (paid <= 0)            { alert('Enter an amount greater than zero.'); return; }
+    if (paid >= Number(r.amount)) {
+      // Amount ≥ outstanding == fully paid; skip partial path.
+      markFullyPaid();
+      return;
+    }
+    const remaining = Number(r.amount) - paid;
+    try {
+      const { data, error } = await supabase
+        .from('receivables')
+        .update({ amount: remaining })
+        .eq('id', r.id)
+        .select()
+        .single();
+      if (error) throw error;
+      setRows(rows.map((x) => (x.id === r.id ? (data as Receivable) : x)));
+      logAction({
+        action: 'update',
+        table_name: 'receivables',
+        record_id: r.id,
+        description: `Partial payment from ${r.from_name}: ${formatCurrency(paid)} received, ${formatCurrency(remaining)} still pending`,
+        old_values: { amount: r.amount },
+        new_values: { amount: remaining, paid },
+      });
+      closePayModal();
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     }
@@ -335,7 +387,7 @@ export default function ReceivablesPage() {
           <Row
             key={r.id}
             r={r}
-            onMark={() => markReceived(r)}
+            onMark={() => openPayModal(r)}
             onEdit={() => startEdit(r)}
             onDelete={() => handleDelete(r)}
           />
@@ -357,6 +409,103 @@ export default function ReceivablesPage() {
           ))}
         </Section>
       )}
+
+      {/* Pay modal — asks how much was received. Fully paid stamps the
+          received date; Partial reduces the outstanding amount and keeps
+          the row pending. */}
+      {payingRow && (() => {
+        const outstanding = Number(payingRow.amount);
+        const paid = parseFloat(payAmountInput);
+        const validPaid = Number.isFinite(paid) && paid > 0;
+        const isPartial = validPaid && paid < outstanding;
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+            onClick={closePayModal}
+          >
+            <div
+              className="bg-18-surface border border-18-border rounded-2xl w-full sm:max-w-sm p-5 shadow-[0_20px_80px_-10px_rgba(0,0,0,0.9)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className="min-w-0">
+                  <h2 className="text-base font-bold text-white">
+                    Record payment from {payingRow.from_name}
+                  </h2>
+                  <p className="text-xs text-white/50 mt-0.5">
+                    Outstanding{' '}
+                    <span className="text-white font-semibold">
+                      {formatCurrency(outstanding)}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePayModal}
+                  className="text-white/50 hover:text-white p-1 -mt-1 -mr-1"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <label className="text-[10px] uppercase tracking-widest text-white/50 font-bold">
+                Amount received (₹)
+              </label>
+              {/* Input + "Fully paid" checkbox on one row. Checking the box
+                  autofills the input with the outstanding amount and locks
+                  it; unchecking hands editing back for a partial. */}
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  autoFocus
+                  disabled={payAmountInput === String(outstanding)}
+                  className="form-input flex-1"
+                  value={payAmountInput}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                      setPayAmountInput(raw);
+                    }
+                  }}
+                />
+                <label className="flex items-center gap-1.5 text-xs text-white/70 shrink-0 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={payAmountInput === String(outstanding)}
+                    onChange={(e) => {
+                      // Checked → autofill full outstanding. Unchecked → clear
+                      // so the user can type a partial amount.
+                      setPayAmountInput(e.target.checked ? String(outstanding) : '');
+                    }}
+                    className="accent-18-orange h-4 w-4"
+                  />
+                  Fully paid
+                </label>
+              </div>
+              {validPaid && isPartial && (
+                <p className="text-xs text-white/60 mt-2">
+                  Remaining after partial:{' '}
+                  <span className="text-emerald-400 font-semibold tabular-nums">
+                    {formatCurrency(outstanding - paid)}
+                  </span>
+                </p>
+              )}
+
+              <button
+                type="button"
+                disabled={!validPaid || paid > outstanding}
+                onClick={paid >= outstanding ? markFullyPaid : markPartiallyPaid}
+                className="mt-4 w-full inline-flex items-center justify-center gap-2 text-sm font-bold text-white bg-18-orange border border-18-orange rounded-full px-5 py-2.5 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Check size={14} />
+                Paid
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

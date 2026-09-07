@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Bank, Transaction } from '@/types';
+import { Bank, Transaction, Loan } from '@/types';
 import { formatCurrency, formatDateISO } from '@/lib/utils';
 import {
   TrendingUp,
@@ -116,6 +116,10 @@ export default function DashboardPage() {
   // Sum of pending receivables (money owed TO the user). Added to the
   // Current Balance so the "money in flight" is visible alongside bank cash.
   const [pendingReceivables, setPendingReceivables] = useState(0);
+  // Loans + paid-per-loan sum. Feeds the "Your loans" section below
+  // the banks list; each row shows outstanding = principal − paid.
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [paidByLoan, setPaidByLoan] = useState<Record<number, number>>({});
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<DateRange>(defaultRange());
   // Bumped whenever we want to force a refetch (route entry, tab focus,
@@ -185,6 +189,20 @@ export default function DashboardPage() {
         setPendingReceivables(
           (pendingData || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0)
         );
+
+        // Loans + payments-per-loan. Missing table (migration not run)
+        // is treated as no loans, so the section just doesn't render.
+        const [loansRes, loanTxRes] = await Promise.all([
+          supabase.from('loans').select('*').order('created_at', { ascending: false }),
+          supabase.from('transactions').select('loan_id, amount').not('loan_id', 'is', null),
+        ]);
+        setLoans((loansRes.data || []) as Loan[]);
+        const paid: Record<number, number> = {};
+        (loanTxRes.data || []).forEach((t: any) => {
+          if (t.loan_id == null) return;
+          paid[t.loan_id] = (paid[t.loan_id] || 0) + Number(t.amount || 0);
+        });
+        setPaidByLoan(paid);
 
         let totalIncome = 0;
         let totalExpenses = 0;
@@ -393,6 +411,52 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Your loans — hidden entirely when the user has no loans, so
+          non-borrowers don't see empty scaffolding. Otherwise mirrors
+          the banks section: name + outstanding + a tiny progress bar. */}
+      {loans.length > 0 && (
+        <div className="bg-18-surface border border-18-border rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/5">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-white">Your loans</h2>
+              <p className="text-xs text-white/50 mt-0.5">Outstanding after linked EMI payments</p>
+            </div>
+            <Link
+              href="/dashboard/loans"
+              className="text-xs font-semibold text-18-orange hover:underline shrink-0"
+            >
+              Manage →
+            </Link>
+          </div>
+          <div className="p-3 sm:p-4">
+            <div className="space-y-2">
+              {loans.map((l) => {
+                const principal = Number(l.principal) || 0;
+                const paid      = paidByLoan[l.id] || 0;
+                const out       = Math.max(0, principal - paid);
+                const pct       = principal > 0 ? Math.min(100, (paid / principal) * 100) : 0;
+                return (
+                  <div key={l.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <p className="font-semibold text-white text-sm truncate flex-1 min-w-0">{l.name}</p>
+                      <p className="font-bold tabular-nums text-sm text-rose-400 shrink-0 whitespace-nowrap">
+                        {formatCurrency(out)}
+                      </p>
+                    </div>
+                    <div className="mt-2 h-1 rounded-full bg-white/5 overflow-hidden">
+                      <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="text-[10px] text-white/50 tabular-nums mt-1">
+                      {formatCurrency(paid)} paid of {formatCurrency(principal)} · {pct.toFixed(0)}%
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

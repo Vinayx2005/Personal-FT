@@ -20,6 +20,7 @@ import {
   Flame,
   Wallet,
   Coins,
+  Banknote,
 } from 'lucide-react';
 
 type NavSection = {
@@ -43,6 +44,7 @@ const navSections: NavSection[] = [
       { label: 'Expenses',     href: '/dashboard/expenses',    icon: IndianRupee },
       { label: 'Income',       href: '/dashboard/income',      icon: TrendingUp },
       { label: 'Receivables',  href: '/dashboard/receivables', icon: Coins },
+      { label: 'Loans',        href: '/dashboard/loans',       icon: Banknote },
       { label: 'Budgets',      href: '/dashboard/budgets',     icon: Wallet },
       { label: 'Investments',  href: '/dashboard/investments', icon: PiggyBank },
     ],

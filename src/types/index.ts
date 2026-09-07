@@ -99,7 +99,23 @@ export interface Transaction {
   status: 'posted' | 'draft' | 'reconciled';
   notes: string;
   receipt_url: string | null;
+  loan_id: number | null;
   created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Loan {
+  id: number;
+  user_id: string;
+  name: string;
+  principal: number;
+  emi_amount: number | null;
+  interest_rate: number | null;
+  tenure_months: number | null;
+  start_date: string | null;
+  lender: string | null;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }

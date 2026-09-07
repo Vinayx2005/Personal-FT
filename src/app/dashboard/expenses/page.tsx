@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Transaction, Category, Bank, SipFrequency, SIP_FREQUENCY_LABELS } from '@/types';
+import { Transaction, Category, Bank, Loan, SipFrequency, SIP_FREQUENCY_LABELS } from '@/types';
 import { formatCurrency, formatDate, formatDateISO } from '@/lib/utils';
 import { Plus, Edit2, Trash2, X, Upload, Download, Paperclip, FileText, Check } from 'lucide-react';
 import { buildImportRows, downloadCSVTemplate, extractCsvCategoryNames } from '@/lib/csvImport';
@@ -24,6 +24,7 @@ interface ExpenseForm {
   transaction_date: string;
   notes: string;
   receipt_url: string | null;
+  loan_id: number | null;
 }
 
 export default function ExpensesPage() {
@@ -33,6 +34,9 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
+  // Active loans for the EMI-category linker. Loaded lazily alongside
+  // banks and categories; empty is fine (linker simply doesn't show).
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -97,6 +101,7 @@ export default function ExpensesPage() {
     transaction_date: formatDateISO(new Date()),
     notes: '',
     receipt_url: null,
+    loan_id: null,
   });
 
   useEffect(() => {
@@ -124,9 +129,18 @@ export default function ExpensesPage() {
           .select('*')
           .eq('is_active', true);
 
+        // Fetch loans — used to show the "which loan?" picker whenever
+        // the selected category is EMI. Missing table (migration not run)
+        // is treated as no loans, so the picker just doesn't render.
+        const { data: loansData } = await supabase
+          .from('loans')
+          .select('*')
+          .order('created_at', { ascending: false });
+
         setExpenses(expensesData || []);
         setCategories(categoriesData || []);
         setBanks(banksData || []);
+        setLoans((loansData || []) as Loan[]);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching expenses:', err);
@@ -292,6 +306,7 @@ export default function ExpensesPage() {
       transaction_date: expense.transaction_date,
       notes: expense.notes || '',
       receipt_url: expense.receipt_url || null,
+      loan_id: expense.loan_id ?? null,
     });
     setEditingId(expense.id);
     setShowForm(true);
@@ -540,6 +555,7 @@ export default function ExpensesPage() {
       transaction_date: formatDateISO(new Date()),
       notes: '',
       receipt_url: null,
+      loan_id: null,
     });
     setEditingId(null);
     // Also reset the recurring toggle so the next fresh Add opens as
@@ -808,10 +824,54 @@ export default function ExpensesPage() {
                   type="expense"
                   categories={categories}
                   value={form.category_id}
-                  onChange={(id) => setForm({ ...form, category_id: id })}
+                  onChange={(id) => {
+                    // Clear a stale loan_id when the user changes AWAY
+                    // from EMI so the picker doesn't leak a link.
+                    const nextCat = categories.find((c) => c.id === id);
+                    const nextIsEmi = (nextCat?.name || '').trim().toLowerCase() === 'emi';
+                    setForm({
+                      ...form,
+                      category_id: id,
+                      loan_id: nextIsEmi ? form.loan_id : null,
+                    });
+                  }}
                   onCategoryCreated={(c) => setCategories([...categories, c])}
                 />
               </div>
+
+              {/* EMI → loan linker. Only shows when the selected category is
+                  EMI AND the user has at least one loan. If they have no
+                  loans yet, we surface a tiny "Add loans first" hint. */}
+              {(() => {
+                const cat = categories.find((c) => c.id === form.category_id);
+                const isEmi = (cat?.name || '').trim().toLowerCase() === 'emi';
+                if (!isEmi) return null;
+                return (
+                  <div className="form-group md:col-span-2">
+                    <label className="form-label">Which loan?</label>
+                    {loans.length === 0 ? (
+                      <p className="text-xs text-white/60 bg-18-bg/40 border border-18-border rounded-lg px-3 py-2">
+                        No loans logged yet.{' '}
+                        <a href="/dashboard/loans" className="text-18-orange hover:underline">
+                          Add a loan
+                        </a>{' '}
+                        first — then EMI expenses link automatically to reduce its balance.
+                      </p>
+                    ) : (
+                      <select
+                        className="form-select"
+                        value={form.loan_id ?? 0}
+                        onChange={(e) => setForm({ ...form, loan_id: parseInt(e.target.value) || null })}
+                      >
+                        <option value={0}>Not linked (skip)</option>
+                        {loans.map((l) => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="form-group">
                 <label className="form-label">{isRecurring ? 'Start date *' : 'Date *'}</label>
