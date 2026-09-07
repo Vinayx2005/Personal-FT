@@ -253,8 +253,11 @@ export default function DashboardPage() {
   // Live current balance across ALL banks = sum(opening) + sum(all-time net).
   // Independent of the date range picker.
   const allTimeNet = Object.values(bankNet).reduce((s, v) => s + v, 0);
-  // Current Balance = bank cash + pending receivables ("money in flight").
-  const currentBalance = data.totalCash + allTimeNet + pendingReceivables;
+  // Current Balance = pure bank cash. Receivables don't shift it either
+  // way at creation time — marking one received creates a real income
+  // transaction (see receivables/page.tsx), which is what actually moves
+  // this number.
+  const currentBalance = data.totalCash + allTimeNet;
   const isBrandNew = data.banks.length === 0 && data.totalIncome === 0 && data.totalExpenses === 0;
   const savingsRate = data.totalIncome > 0 ? Math.round((profit / data.totalIncome) * 100) : 0;
 
@@ -306,7 +309,7 @@ export default function DashboardPage() {
           value={formatCurrency(currentBalance)}
           sub={
             pendingReceivables > 0
-              ? `incl. ${formatCurrency(pendingReceivables)} receivable`
+              ? `+ ${formatCurrency(pendingReceivables)} pending`
               : `Opening: ${formatCurrency(data.totalCash)}`
           }
           icon={Wallet}

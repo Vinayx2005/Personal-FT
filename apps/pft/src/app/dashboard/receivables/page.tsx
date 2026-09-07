@@ -5,10 +5,10 @@
 // dashboard's Current Balance so the "money out in the world" is visible
 // alongside bank balances.
 //
-// ponytail: mark-received just stamps received_date. It does NOT
-// auto-insert an income transaction into the picked bank. Users who want
-// their bank balance to reflect the return log the income themselves
-// (same pattern as investments today). Add auto-income when users ask.
+// Mark-received both stamps received_date AND inserts an income
+// transaction into the picked bank so the dashboard's Current Balance
+// reflects the money returning. Adding a receivable never touches the
+// balance — you tell PFT the money came back by clicking Paid.
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -50,16 +50,50 @@ export default function ReceivablesPage() {
   // leaves the row pending.
   const [payingRow, setPayingRow] = useState<Receivable | null>(null);
   const [payAmountInput, setPayAmountInput] = useState('');
+  // Banks + income categories loaded so Paid can create a real income
+  // transaction into a chosen bank. Selected bank persists across pay
+  // modal opens (defaults to first bank the first time).
+  const [banks, setBanks] = useState<{ id: number; bank_name: string }[]>([]);
+  const [incomeCategoryId, setIncomeCategoryId] = useState<number | null>(null);
+  const [expenseCategoryId, setExpenseCategoryId] = useState<number | null>(null);
+  const [payBankId, setPayBankId] = useState<number | null>(null);
+  // Bank the money came FROM when lending (add form). Same default as
+  // payBankId — first bank in the list.
+  const [giveBankId, setGiveBankId] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUserId(user?.id ?? null);
-      const { data } = await supabase
-        .from('receivables')
-        .select('*')
-        .order('given_date', { ascending: false });
-      setRows((data || []) as Receivable[]);
+      const [rowsRes, banksRes, incomeCatRes, expenseCatRes] = await Promise.all([
+        supabase.from('receivables').select('*').order('given_date', { ascending: false }),
+        supabase.from('banks').select('id, bank_name').order('bank_name'),
+        // Dedicated "Receivables" income + expense categories so both
+        // sides of the lifecycle stay off Salary/Others. Auto-created
+        // the first time a user opens this page.
+        supabase.from('categories').select('id').eq('type', 'income').eq('name', 'Receivables').limit(1),
+        supabase.from('categories').select('id').eq('type', 'expense').eq('name', 'Receivables').limit(1),
+      ]);
+      setRows((rowsRes.data || []) as Receivable[]);
+      const b = (banksRes.data || []) as { id: number; bank_name: string }[];
+      setBanks(b);
+      if (b.length > 0) {
+        setPayBankId(b[0].id);
+        setGiveBankId(b[0].id);
+      }
+
+      const ensureCat = async (type: 'income' | 'expense', existing: number | null) => {
+        if (existing) return existing;
+        if (!user?.id) return null;
+        const { data: created } = await supabase
+          .from('categories')
+          .insert({ type, name: 'Receivables', user_id: user.id, is_default: false })
+          .select('id')
+          .single();
+        return created?.id ?? null;
+      };
+      setIncomeCategoryId(await ensureCat('income',  (incomeCatRes.data || [])[0]?.id ?? null));
+      setExpenseCategoryId(await ensureCat('expense', (expenseCatRes.data || [])[0]?.id ?? null));
       setLoading(false);
     })();
   }, []);
@@ -113,8 +147,24 @@ export default function ReceivablesPage() {
           new_values: payload,
         });
       } else {
+        if (!giveBankId)        { alert('Pick a bank to lend from.'); return; }
+        if (!expenseCategoryId) { alert('Receivables expense category missing.'); return; }
         const { data, error } = await supabase.from('receivables').insert(payload).select().single();
         if (error) throw error;
+        // Debit the chosen bank so the balance drops right away, tagged
+        // with the Receivables expense category. Symmetric with the
+        // income tx created on mark-received.
+        await supabase.from('transactions').insert({
+          transaction_type: 'expense',
+          bank_id: giveBankId,
+          category_id: expenseCategoryId,
+          description: `Lent to ${payload.from_name}`,
+          amount: payload.amount,
+          transaction_date: payload.given_date,
+          status: 'posted',
+          created_at: new Date().toISOString(),
+          created_by: uid,
+        });
         setRows([data as Receivable, ...rows]);
         logAction({
           action: 'create',
@@ -158,8 +208,29 @@ export default function ReceivablesPage() {
     setPayAmountInput('');
   };
 
+  /** Insert the income transaction into the selected bank. Shared by
+   *  fully-paid and partial-paid so the balance always moves the same
+   *  way whether the return comes in one hit or several. */
+  const createIncomeTx = async (r: Receivable, amount: number) => {
+    if (!userId || !payBankId || !incomeCategoryId) return;
+    const today = formatDateISO(new Date());
+    await supabase.from('transactions').insert({
+      transaction_type: 'income',
+      bank_id: payBankId,
+      category_id: incomeCategoryId,
+      description: `Received from ${r.from_name}`,
+      amount,
+      transaction_date: today,
+      status: 'posted',
+      created_at: new Date().toISOString(),
+      created_by: userId,
+    });
+  };
+
   const markFullyPaid = async () => {
     if (!payingRow) return;
+    if (!payBankId)        { alert('Pick a bank to deposit into.'); return; }
+    if (!incomeCategoryId) { alert('No income category found. Create one in Categories.'); return; }
     const r = payingRow;
     try {
       const today = formatDateISO(new Date());
@@ -170,6 +241,7 @@ export default function ReceivablesPage() {
         .select()
         .single();
       if (error) throw error;
+      await createIncomeTx(r, Number(r.amount));
       setRows(rows.map((x) => (x.id === r.id ? (data as Receivable) : x)));
       logAction({
         action: 'update',
@@ -186,6 +258,8 @@ export default function ReceivablesPage() {
 
   const markPartiallyPaid = async () => {
     if (!payingRow) return;
+    if (!payBankId)        { alert('Pick a bank to deposit into.'); return; }
+    if (!incomeCategoryId) { alert('No income category found. Create one in Categories.'); return; }
     const r = payingRow;
     const paid = parseFloat(payAmountInput) || 0;
     if (paid <= 0)            { alert('Enter an amount greater than zero.'); return; }
@@ -203,6 +277,7 @@ export default function ReceivablesPage() {
         .select()
         .single();
       if (error) throw error;
+      await createIncomeTx(r, paid);
       setRows(rows.map((x) => (x.id === r.id ? (data as Receivable) : x)));
       logAction({
         action: 'update',
@@ -370,6 +445,23 @@ export default function ReceivablesPage() {
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
             </div>
+            {/* Bank picker only shown when adding a new receivable —
+                editing shouldn't retro-create a bank transaction. */}
+            {!editingId && (
+              <div>
+                <label className="form-label">Paid from</label>
+                <select
+                  className="form-input"
+                  value={giveBankId ?? ''}
+                  onChange={(e) => setGiveBankId(Number(e.target.value) || null)}
+                >
+                  {banks.length === 0 && <option value="">No banks — add one first</option>}
+                  {banks.map((b) => (
+                    <option key={b.id} value={b.id}>{b.bank_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           <button
             type="submit"
@@ -448,6 +540,20 @@ export default function ReceivablesPage() {
                   <X size={18} />
                 </button>
               </div>
+
+              <label className="text-[10px] uppercase tracking-widest text-white/50 font-bold">
+                Deposit into
+              </label>
+              <select
+                className="form-input mt-1 mb-3 w-full"
+                value={payBankId ?? ''}
+                onChange={(e) => setPayBankId(Number(e.target.value) || null)}
+              >
+                {banks.length === 0 && <option value="">No banks — add one first</option>}
+                {banks.map((b) => (
+                  <option key={b.id} value={b.id}>{b.bank_name}</option>
+                ))}
+              </select>
 
               <label className="text-[10px] uppercase tracking-widest text-white/50 font-bold">
                 Amount received (₹)
