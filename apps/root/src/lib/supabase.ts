@@ -12,6 +12,37 @@ export const supabase = createClient(url, key, {
   db:   { schema: 'blog' },
 });
 
+// Second client pinned to the `dilse` schema — the home page pulls Teja's
+// latest stories from there and links out to dilse.craftedbyteja.com.
+export const dilse = createClient(url, key, {
+  auth: { persistSession: false },
+  db:   { schema: 'dilse' },
+});
+
+export const DILSE_URL = 'https://dilse.craftedbyteja.com';
+
+export interface DilseStory {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  cover_url: string | null;
+  published_at: string | null;
+  read_time: string | null;
+  genre: string | null;
+}
+
+export interface DilseBook {
+  id: number;
+  slug: string;
+  title: string;
+  description: string | null;
+  cover_url: string | null;
+  published_at: string | null;
+  date_display: string | null;
+  genre: string | null;
+}
+
 export interface BlogPost {
   id: number;
   site: 'root' | 'pft';

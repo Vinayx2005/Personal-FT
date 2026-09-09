@@ -2,33 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { background: #0A0A0A; color: #fff; }
+/* Light "paper" theme — warm off-white ground, ink text, one amber accent. */
+html, body { background: #F7F6F2; color: #111110; }
 body {
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.011em;
 }
 
-/* Article typography for markdown-rendered blog + story bodies */
+/* Handwritten annotations (hero scribbles, sticky note). */
+.handwritten { font-family: Caveat, 'Segoe Script', cursive; letter-spacing: 0; }
+
+/* Article typography for markdown-rendered blog bodies */
 .prose-crafted {
-  font-family: 'Poppins', system-ui, sans-serif;
-  color: #E5E5E5;
+  color: #3A3A38;
   line-height: 1.75;
+  font-size: 1.0625rem;
 }
-.prose-crafted h1 { font-size: 2rem; font-weight: 800; color: #fff; margin: 2rem 0 1rem; }
-.prose-crafted h2 { font-size: 1.5rem; font-weight: 700; color: #fff; margin: 1.75rem 0 0.75rem; }
-.prose-crafted h3 { font-size: 1.25rem; font-weight: 700; color: #fff; margin: 1.5rem 0 0.5rem; }
-.prose-crafted p  { margin: 0 0 1rem; }
+.prose-crafted h1 { font-size: 2rem; font-weight: 800; color: #111110; margin: 2rem 0 1rem; letter-spacing: -0.02em; }
+.prose-crafted h2 { font-size: 1.5rem; font-weight: 700; color: #111110; margin: 1.75rem 0 0.75rem; letter-spacing: -0.02em; }
+.prose-crafted h3 { font-size: 1.25rem; font-weight: 700; color: #111110; margin: 1.5rem 0 0.5rem; }
+.prose-crafted p  { margin: 0 0 1.15rem; }
 .prose-crafted ul, .prose-crafted ol { margin: 0 0 1rem 1.5rem; }
 .prose-crafted ul { list-style: disc; }
 .prose-crafted ol { list-style: decimal; }
 .prose-crafted li { margin: 0.25rem 0; }
-.prose-crafted a  { color: #F37335; text-decoration: underline; text-underline-offset: 3px; }
-.prose-crafted a:hover { filter: brightness(1.2); }
-.prose-crafted strong { color: #fff; font-weight: 700; }
+.prose-crafted a  { color: #111110; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #C8A02E; }
+.prose-crafted a:hover { color: #A9821E; }
+.prose-crafted strong { color: #111110; font-weight: 700; }
 .prose-crafted em { font-style: italic; }
-.prose-crafted blockquote { border-left: 3px solid #F37335; padding-left: 1rem; margin: 1rem 0; color: #B0B0B0; font-style: italic; }
-.prose-crafted code { background: #1C1C1C; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.9em; }
-.prose-crafted pre  { background: #141414; border: 1px solid #2A2A2A; padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
-.prose-crafted pre code { background: none; padding: 0; }
-.prose-crafted hr { border: 0; border-top: 1px solid #2A2A2A; margin: 2rem 0; }
-.prose-crafted img { border-radius: 8px; margin: 1rem 0; }
+.prose-crafted blockquote { border-left: 3px solid #E7B84B; padding-left: 1rem; margin: 1.5rem 0; color: #5A5A56; font-style: italic; }
+.prose-crafted code { background: #EFEDE6; padding: 0.1rem 0.35rem; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.9em; }
+.prose-crafted pre  { background: #14140F; color: #F2F1EC; padding: 1rem; border-radius: 10px; overflow-x: auto; margin: 1.25rem 0; }
+.prose-crafted pre code { background: none; padding: 0; color: inherit; }
+.prose-crafted hr { border: 0; border-top: 1px solid #E4E1D8; margin: 2rem 0; }
+.prose-crafted img { border-radius: 10px; margin: 1.25rem 0; }

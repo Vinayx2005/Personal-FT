@@ -1,48 +1,85 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Twitter, Linkedin, Instagram } from 'lucide-react';
+
+const WHATSAPP = 'https://wa.me/918886956636';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Crafted by Teja',
-  description: 'Writing, tools, and stories by Teja Surishetti.',
+  description: 'Builder, writer, explorer. Ideas, tools and thoughts for a more intentional life.',
   metadataBase: new URL('https://craftedbyteja.com'),
   openGraph: {
     title: 'Crafted by Teja',
-    description: 'Writing, tools, and stories by Teja Surishetti.',
+    description: 'Builder, writer, explorer. Ideas, tools and thoughts for a more intentional life.',
     url: 'https://craftedbyteja.com',
     siteName: 'Crafted by Teja',
     type: 'website',
   },
 };
 
+const NAV = [
+  { label: 'Home',    href: '/' },
+  { label: 'About',   href: '/#about' },   // "A little about me"
+  { label: 'Work',    href: '/#build' },   // "What I do today"
+  { label: 'Writing', href: '/#writing' },
+  { label: 'Tools',   href: '/#work' },    // the tech projects grid
+  { label: 'Contact', href: '/#contact' },
+];
+
+const SOCIALS = [
+  { label: 'X', href: 'https://x.com/tejasurishetti', icon: Twitter },
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/surishettiteja/', icon: Linkedin },
+  { label: 'Instagram', href: 'https://www.instagram.com/tejasurishetti/', icon: Instagram },
+];
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Caveat:wght@500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <div className="min-h-screen flex flex-col">
-          <header className="border-b border-18-border/60 bg-18-bg/80 backdrop-blur-sm sticky top-0 z-20">
-            <nav className="max-w-4xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-2 group">
-                <div className="bg-18-orange h-7 w-7 rounded-full flex items-center justify-center shadow-[0_0_18px_-4px_rgba(243,115,53,0.6)]">
-                  <span className="text-white font-bold text-[10px]">CBT</span>
-                </div>
-                <span className="font-bold text-sm">Crafted by Teja</span>
-              </Link>
-              <div className="flex items-center gap-5 text-sm text-white/70">
-                <Link href="/blog" className="hover:text-white transition-colors">Blog</Link>
-                <a href="https://dilse.craftedbyteja.com" className="hover:text-white transition-colors">Dilse</a>
-                <a href="https://tools.craftedbyteja.com" className="hover:text-white transition-colors">Tools</a>
+          <header className="sticky top-0 z-30 bg-paper/85 backdrop-blur-md">
+            <nav className="max-w-6xl mx-auto px-5 md:px-8 h-[72px] flex items-center justify-between">
+              <Link href="/" className="text-xl font-black tracking-tight">ST</Link>
+
+              <div className="hidden md:flex items-center gap-8 text-[13px] text-ink2">
+                {NAV.map((n) => (
+                  <Link key={n.label} href={n.href} className="hover:text-ink transition-colors">
+                    {n.label}
+                  </Link>
+                ))}
               </div>
+
+              <a
+                href={WHATSAPP}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-ink text-white text-[13px] font-medium px-5 py-2.5 hover:bg-ink2 transition-colors whitespace-nowrap"
+              >
+                Let&apos;s Connect →
+              </a>
             </nav>
           </header>
+
           <main className="flex-1">{children}</main>
-          <footer className="border-t border-18-border/60 mt-16">
-            <div className="max-w-4xl mx-auto px-4 md:px-6 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-white/40">
-              <span>© {new Date().getFullYear()} Teja Surishetti</span>
-              <div className="flex items-center gap-4">
-                <a href="https://dilse.craftedbyteja.com" className="hover:text-white transition-colors">Dilse</a>
-                <a href="https://tools.craftedbyteja.com" className="hover:text-white transition-colors">Tools</a>
-                <a href="https://pft.craftedbyteja.com" className="hover:text-white transition-colors">Personal FT</a>
+
+          <footer className="border-t border-line">
+            <div className="max-w-6xl mx-auto px-5 md:px-8 py-7 flex flex-wrap items-center justify-between gap-4">
+              <span className="text-xl font-black tracking-tight">ST</span>
+              <div className="flex items-center gap-5 text-ink">
+                {SOCIALS.map((s) => (
+                  <a key={s.label} href={s.href} aria-label={s.label} className="text-ink/70 hover:text-ink transition-colors">
+                    <s.icon size={17} />
+                  </a>
+                ))}
               </div>
             </div>
           </footer>
