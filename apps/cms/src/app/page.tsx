@@ -1,6 +1,6 @@
 import AuthGate from './AuthGate';
 import Link from 'next/link';
-import { PenLine, BookOpen, ArrowRight } from 'lucide-react';
+import { PenLine, BookOpen, Users, ArrowRight } from 'lucide-react';
 
 export default function CmsHome() {
   return (
@@ -33,6 +33,19 @@ export default function CmsHome() {
               <ArrowRight size={14} className="text-white/40 group-hover:text-18-orange transition-colors" />
             </div>
             <p className="text-xs text-white/50 mt-1">Stories</p>
+          </Link>
+          <Link
+            href="/users"
+            className="group bg-18-surface border border-18-border rounded-2xl p-5 hover:border-18-orange/40 transition-colors"
+          >
+            <div className="h-10 w-10 rounded-lg bg-18-orange/10 border border-18-orange/30 flex items-center justify-center mb-3">
+              <Users size={18} className="text-18-orange" />
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-base font-bold text-white">Users</p>
+              <ArrowRight size={14} className="text-white/40 group-hover:text-18-orange transition-colors" />
+            </div>
+            <p className="text-xs text-white/50 mt-1">Accounts across all apps</p>
           </Link>
         </div>
       </div>

@@ -56,3 +56,14 @@ export interface Story {
   created_at: string;
   updated_at: string;
 }
+
+// Returned by the public.cms_users_overview() RPC — see
+// migrations/cms_users_overview.sql for how `apps` is derived.
+export interface CmsUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  apps: string[];
+}
