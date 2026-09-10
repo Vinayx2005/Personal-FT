@@ -12,17 +12,25 @@
 -- get their subscription row.
 --
 -- To run: paste into Supabase SQL editor and execute.
+--
+-- NOTE: the PFT tables moved out of `public` into the `pft` schema
+-- (move_pft_to_pft_schema.sql), so the bodies below target pft.users /
+-- pft.categories / pft.subscriptions. The functions themselves stay in
+-- `public` — they are triggers on auth.users and their OIDs must not
+-- change. move_pft_to_pft_schema.sql carries the same two definitions;
+-- if you ever move these tables again, update both files or this one
+-- will quietly overwrite the working triggers with stale references.
 
 -- ---------- 1. Harden the app-users + default-categories trigger ----------
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = pft, public
 as $$
 begin
   begin
-    insert into public.users (id, email, full_name)
+    insert into pft.users (id, email, full_name)
     values (
       new.id,
       new.email,
@@ -38,7 +46,7 @@ begin
   end;
 
   begin
-    insert into public.categories (type, name, user_id, is_default) values
+    insert into pft.categories (type, name, user_id, is_default) values
       ('expense', 'Food & Groceries', new.id, true),
       ('expense', 'Rent',             new.id, true),
       ('expense', 'Transport',        new.id, true),
@@ -64,11 +72,11 @@ create or replace function public.handle_new_user_subscription()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = pft, public
 as $$
 begin
   begin
-    insert into public.subscriptions (user_id)
+    insert into pft.subscriptions (user_id)
     values (new.id)
     on conflict (user_id) do nothing;
   exception when others then
@@ -79,6 +87,6 @@ end;
 $$;
 
 -- ---------- 3. Backfill any users left without a subscription row ----------
-insert into public.subscriptions (user_id)
+insert into pft.subscriptions (user_id)
 select id from auth.users
 on conflict (user_id) do nothing;
