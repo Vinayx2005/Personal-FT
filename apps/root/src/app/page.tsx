@@ -194,7 +194,7 @@ export default async function HomePage() {
               <span className="h-2 w-2 rounded-full bg-amber" />
               Hey, I&apos;m Teja
             </p>
-            <h1 className="text-5xl md:text-[62px] font-black tracking-[-0.035em] leading-[1.05] mb-6">
+            <h1 className="text-[40px] sm:text-5xl md:text-[62px] font-black tracking-[-0.035em] leading-[1.05] mb-6">
               Entrepreneur. Writer.
               <br />
               Explorer.
@@ -204,34 +204,16 @@ export default async function HomePage() {
               emotions, and everything I explore along the way.
             </p>
 
-            <div className="flex flex-wrap items-center gap-6 mb-12">
+            <div className="flex flex-wrap items-center gap-6">
               <a
                 href="#work"
                 className="inline-flex items-center gap-2 rounded-full bg-ink text-white text-sm font-semibold px-6 py-3.5 hover:bg-ink2 transition-colors"
               >
                 Explore My Work <ArrowRight size={15} />
               </a>
-              <a href="#about" className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-ink2 transition-colors">
+              <a href="#about" className="inline-flex items-center gap-1.5 py-2 -my-2 text-sm font-semibold hover:text-ink2 transition-colors">
                 Know Me Better <ArrowDown size={15} />
               </a>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-2.5">
-                {['A', 'B', 'C'].map((s) => (
-                  <div
-                    key={s}
-                    className="h-9 w-9 rounded-full ring-2 ring-paper bg-gradient-to-br from-neutral-300 to-neutral-500 grid place-items-center text-[11px] font-bold text-white"
-                  >
-                    {s}
-                  </div>
-                ))}
-              </div>
-              <p className="text-[13px] text-muted leading-snug">
-                Ideas I build, stories I write,
-                <br />
-                and lessons I learn along the way.
-              </p>
             </div>
           </div>
 
@@ -256,16 +238,19 @@ export default async function HomePage() {
               <path d="M38.5 24.5 47 24M44 16.5 47 24" />
             </svg>
 
-            <div className="relative ml-auto w-full max-w-[290px] aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-br from-neutral-200 via-neutral-300 to-neutral-400 grid place-items-center">
-              <img src="/teja.jpg" alt="Teja" className="h-full w-full object-cover" />
-            </div>
+            {/* photo + note travel together: centred on mobile, right-aligned from md */}
+            <div className="relative mx-auto md:mr-0 w-full max-w-[290px]">
+              <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden bg-gradient-to-br from-neutral-200 via-neutral-300 to-neutral-400 grid place-items-center">
+                <img src="/teja.jpg" alt="Teja" className="h-full w-full object-cover" />
+              </div>
 
-            <div className="absolute -bottom-6 right-0 md:-right-4 w-[118px] rotate-[7deg] bg-note shadow-sm px-4 py-4">
-              <p className="handwritten text-[17px] leading-[1.35] text-ink2">
-                Never planned.
-                <br />
-                Just explored.
-              </p>
+              <div className="absolute -bottom-6 right-0 md:-right-14 w-[118px] rotate-[7deg] bg-note shadow-sm px-4 py-4">
+                <p className="handwritten text-[17px] leading-[1.35] text-ink2">
+                  Never planned.
+                  <br />
+                  Just explored.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -291,7 +276,7 @@ export default async function HomePage() {
             </a>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-10 gap-y-10 md:pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-8 sm:gap-y-10 md:pt-2">
             {PILLARS.map((p) => (
               <div key={p.title}>
                 <p.icon size={22} strokeWidth={1.6} className="mb-4" />
@@ -396,12 +381,12 @@ export default async function HomePage() {
       {/* ------------------------------------------------------------ work */}
       <section id="work" className="border-b border-line bg-paper2 scroll-mt-20">
         <div className="max-w-6xl mx-auto px-5 md:px-8 py-20">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-4">Work</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted mb-4">My other work</p>
           <div className="flex flex-wrap items-end justify-between gap-4 mb-9">
             <h2 className="text-4xl font-black tracking-[-0.03em] max-w-xl">
               I&apos;m curious about building tech projects.
             </h2>
-            <a href="#contact" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink2 hover:text-ink transition-colors">
+            <a href="#contact" className="inline-flex items-center gap-1.5 py-2 -my-2 text-sm font-medium text-ink2 hover:text-ink transition-colors">
               Talk about one <ArrowRight size={15} />
             </a>
           </div>
@@ -485,7 +470,7 @@ export default async function HomePage() {
             </h2>
             <a
               href={`${DILSE_URL}/short-stories`}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-ink2 hover:text-ink transition-colors"
+              className="inline-flex items-center gap-1.5 py-2 -my-2 text-sm font-medium text-ink2 hover:text-ink transition-colors"
             >
               Read all stories <ArrowRight size={15} />
             </a>

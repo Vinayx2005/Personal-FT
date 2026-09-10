@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="min-h-screen flex flex-col">
           <header className="sticky top-0 z-30 bg-paper/85 backdrop-blur-md">
             <nav className="max-w-6xl mx-auto px-5 md:px-8 h-[72px] flex items-center justify-between">
-              <Link href="/" className="text-xl font-black tracking-tight">ST</Link>
+              <Link href="/" className="text-xl font-black tracking-tight py-2">ST</Link>
 
               <div className="hidden md:flex items-center gap-8 text-[13px] text-ink2">
                 {NAV.map((n) => (
@@ -73,10 +73,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <footer className="border-t border-line">
             <div className="max-w-6xl mx-auto px-5 md:px-8 py-7 flex flex-wrap items-center justify-between gap-4">
-              <span className="text-xl font-black tracking-tight">ST</span>
+              <div className="flex items-center gap-4">
+                <span className="text-xl font-black tracking-tight">ST</span>
+                <a
+                  href="mailto:hello@craftedbyteja.com"
+                  className="py-2 text-[13px] text-muted hover:text-ink transition-colors"
+                >
+                  hello@craftedbyteja.com
+                </a>
+              </div>
               <div className="flex items-center gap-5 text-ink">
                 {SOCIALS.map((s) => (
-                  <a key={s.label} href={s.href} aria-label={s.label} className="text-ink/70 hover:text-ink transition-colors">
+                  <a key={s.label} href={s.href} aria-label={s.label} className="p-2 -m-2 text-ink/70 hover:text-ink transition-colors">
                     <s.icon size={17} />
                   </a>
                 ))}
