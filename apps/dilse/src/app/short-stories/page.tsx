@@ -35,10 +35,13 @@ export default async function ShortStoriesPage() {
           <img src="/teja-hero.png" alt="Teja Surishetti" className="w-full h-full object-cover grayscale object-top" />
           <div className="absolute inset-0 bg-black/30" />
         </div>
-        <HeroInner heading="Short Stories" />
+        <HeroInner
+          heading="Short Stories"
+          sub="Small windows into everyday emotions. Love, memory, silence — the moments that pass quickly but stay a while."
+        />
       </section>
       <section className="py-24 bg-white">
-        <div className="container mx-auto px-[50px] max-w-7xl">
+        <div className="container mx-auto px-6 sm:px-[50px] max-w-7xl">
           {cards.length === 0 ? (
             <p className="text-center text-gray-500 font-serif">No stories yet.</p>
           ) : (

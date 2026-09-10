@@ -49,12 +49,12 @@ export default async function Home() {
         </div>
         <HeroInner
           heading="The Essence Of My Memories & Beliefs…"
-          sub="Explore the kaleidoscope of emotions. Each story carries a piece of my heart, justifying the title Dilse."
+          sub={'Explore the kaleidoscope of emotions.\nEach story carries a piece of my heart.'}
         />
       </section>
 
       <section className="py-24 bg-white">
-        <div className="container mx-auto px-[50px] max-w-7xl">
+        <div className="container mx-auto px-6 sm:px-[50px] max-w-7xl">
           <div className="flex justify-between items-end mb-16 border-b border-black pb-6">
             <h2 className="font-serif md:text-5xl font-bold tracking-tight text-[32px]">Short Stories</h2>
             <Link href="/short-stories" className="text-gray-500 hover:text-black hover:underline underline-offset-4 transition-colors">
@@ -73,7 +73,7 @@ export default async function Home() {
 
       {book && (
         <section className="py-24 bg-gray-50">
-          <div className="container mx-auto px-[50px] max-w-7xl">
+          <div className="container mx-auto px-6 sm:px-[50px] max-w-7xl">
             <div className="flex justify-between items-end mb-16 border-b border-black pb-6">
               <h2 className="font-serif md:text-5xl font-bold tracking-tight text-[32px]">Books</h2>
               <Link href="/books" className="text-gray-500 hover:text-black hover:underline underline-offset-4 transition-colors">

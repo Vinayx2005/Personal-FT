@@ -31,8 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </p>
               </div>
               <div className="text-center md:text-right text-gray-400">
-                <p className="mb-2">+91 8886956636</p>
-                <p>connect.dilse.love@gmail.com</p>
+                <a href="mailto:hello@dilse.craftedbyteja.com" className="hover:text-white transition-colors">
+                  hello@dilse.craftedbyteja.com
+                </a>
               </div>
             </div>
           </footer>

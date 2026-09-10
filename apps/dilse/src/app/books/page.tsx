@@ -27,11 +27,14 @@ export default async function BooksPage() {
           <img src="/teja-hero.png" alt="Teja Surishetti" className="h-full w-full object-cover object-top grayscale" />
           <div className="absolute inset-0 bg-black/40" />
         </div>
-        <HeroInner heading="Books" />
+        <HeroInner
+          heading="Books"
+          sub="Long-form stories bound in paper — where a moment stretches into a life. Each one written from the heart, in Telugu and English."
+        />
       </section>
 
       <section className="bg-white py-24">
-        <div className="container mx-auto px-6 space-y-24">
+        <div className="container mx-auto px-6 sm:px-[50px] max-w-7xl space-y-24">
           {books.length === 0 ? (
             <p className="text-center text-gray-500 font-serif">No books yet.</p>
           ) : books.map((book) => (
